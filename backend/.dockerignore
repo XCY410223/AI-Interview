@@ -1,0 +1,19 @@
+# Docker 构建忽略（禁止把密钥/本地数据打进镜像，规范 §11.1）
+.git
+.env
+.env.*
+!.env.example
+logs/
+uploads/
+__pycache__/
+*.pyc
+.venv/
+venv/
+.pytest_cache/
+.mypy_cache/
+.coverage
+htmlcov/
+tests/
+eval/
+requirements-dev.txt
+node_modules/

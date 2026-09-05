@@ -1,0 +1,21 @@
+# === 开发期依赖（禁止进生产镜像，规范 §5/§9.7/§12）===
+-r requirements.txt
+
+# 测试
+pytest>=8.0
+pytest-asyncio>=0.23
+pytest-cov>=5.0
+respx>=0.21                 # AI 调用 mock
+vcrpy>=6.0                  # 录制重放
+testcontainers>=4.4         # postgres/redis 集成测试
+
+# 质量门禁
+flake8>=7.0
+isort>=5.13
+black>=24.0
+mypy>=1.8
+
+# RAG 离线评估（Ragas + judge 依赖，仅开发期）
+ragas>=0.2
+langchain>=0.2
+langchain-openai>=0.1

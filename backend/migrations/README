@@ -1,0 +1,4 @@
+# Alembic 迁移目录
+
+`env.py` / `script.py.mako` 由 `alembic init` 生成；
+每个 schema 变更在 `versions/` 下新增一个迁移文件（规范 §7.3）。
