@@ -13,11 +13,15 @@ class LLMClient:
     """统一封装；M0-4 落地超时/重试/降级/token 计量分支。"""
 
     def __init__(self) -> None:
-        self._client = AsyncOpenAI(
-            api_key=settings.LLM_API_KEY,
-            base_url=settings.LLM_BASE_URL,
-            timeout=settings.LLM_TOTAL_TIMEOUT,
-        )
+        self._client: AsyncOpenAI | None = None
+        # 缺省无密钥时不构造真实客户端，避免导入期因空 api_key 直接抛错；
+        # 真正发起调用时再校验（chat 在 M0-4 落地）
+        if settings.LLM_API_KEY:
+            self._client = AsyncOpenAI(
+                api_key=settings.LLM_API_KEY,
+                base_url=settings.LLM_BASE_URL,
+                timeout=settings.LLM_TOTAL_TIMEOUT,
+            )
 
     async def chat(
         self,

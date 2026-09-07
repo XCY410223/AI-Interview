@@ -2,6 +2,8 @@
 
 session 统一通过 FastAPI `Depends` 提供，Service 层禁止自行 new session。
 """
+from collections.abc import AsyncGenerator
+
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
 from app.core.config import settings
@@ -15,7 +17,7 @@ engine = create_async_engine(
 async_session_factory = async_sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
 
 
-async def get_db() -> AsyncSession:
+async def get_db() -> AsyncGenerator[AsyncSession, None]:
     """FastAPI 依赖：请求级 session，用完自动关闭。"""
     async with async_session_factory() as session:
         yield session
