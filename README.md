@@ -76,8 +76,33 @@ AI-Interview/
 
 FastAPI `8006` / PostgreSQL `5434` / Redis `6382` / Nginx `80`/`443`
 
+## 本地启动（Docker Compose，M0-2）
+
+在 `backend/` 目录下执行（Compose 文件与 Dockerfile 均位于此，`../nginx` 相对路径以此解析）：
+
+```bash
+cd backend
+cp .env.example .env          # 首次：生成本地配置（真实密钥不入库；缺 .env 也能用默认值起）
+docker compose up -d --build  # 一条命令起全栈
+```
+
+启动后冒烟：
+
+- 后端健康检查（经 Nginx 反代）：`curl http://localhost/api/v1/health`
+- Nginx 自身探活：`curl http://localhost/healthz`
+- Swagger：`http://localhost/api/docs`
+
+常用：
+
+- 开发（源码热重载）：`docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d --build`
+- 生产加固（TLS，证书放 `backend/certs/`）：`docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build`
+- Celery 监控：`docker compose --profile flower up -d`
+- 定时备份：`docker compose --profile backup up -d`
+
+> 注意：`docker compose down -v` 会清空数据卷，属危险命令（CLAUDE.md 红线），请勿执行。
+
 ## 下一步（对应计划书 M0）
 
-- M0-2：实现 `docker-compose.yml` + Dockerfile（healthcheck/非 root/多阶段构建）
-- M0-3：`.github/workflows/` 建 CI（quick-check/test/lint/build）
+- ~~M0-2：实现 `docker-compose.yml` + Dockerfile（healthcheck/非 root/多阶段构建）~~ ✅
+- ~~M0-3：`.github/workflows/` 建 CI（quick-check/test/lint-frontend/build，覆盖率 ≥60%）~~ ✅
 - M0-4：实现 `core/llm/client.py`（超时/重试/降级/token 计量）

@@ -17,3 +17,10 @@ tests/
 eval/
 requirements-dev.txt
 node_modules/
+
+# 构建无关文件（保持镜像精简）
+Dockerfile*
+docker-compose*.yml
+.dockerignore
+.gitignore
+*.md

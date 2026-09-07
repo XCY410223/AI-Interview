@@ -1,1 +1,47 @@
-# 开发编排占位（挂载源码热重载）
+# =============================================================================
+# 开发覆盖层（规范 §15：挂载源码热重载）
+#
+# 用法（在 backend/ 目录下执行）：
+#   docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d --build
+#
+# 覆盖内容：
+#   - app / celery 改用 Dockerfile.dev（含 dev 依赖 + uvicorn --reload）
+#   - 挂载 ./:/app 源码热重载；app 额外发布 8006 供本地直连
+#   - APP_ENV=development、DEBUG=true
+# =============================================================================
+
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+    image: ai-interview/app:dev
+    environment:
+      APP_ENV: development
+      DEBUG: "true"
+    ports:
+      - "8006:8006"
+    volumes:
+      - .:/app
+
+  celery-worker:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+    image: ai-interview/app:dev
+    environment:
+      APP_ENV: development
+      DEBUG: "true"
+    volumes:
+      - .:/app
+
+  celery-beat:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+    image: ai-interview/app:dev
+    environment:
+      APP_ENV: development
+      DEBUG: "true"
+    volumes:
+      - .:/app

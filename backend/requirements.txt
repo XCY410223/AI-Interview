@@ -9,6 +9,7 @@ pydantic>=2.7,<3.0
 pydantic-settings>=2.2
 redis>=5.0
 celery>=5.4,<6.0
+flower>=2.0                 # Celery 监控（可选，--profile flower，规范 §15）
 openai>=1.0,<2.0            # AsyncOpenAI，兼容 DeepSeek/通义
 pgvector>=0.2               # PostgreSQL 向量检索（RAG 题库）
 boto3>=1.34                 # MinIO/COS S3 协议

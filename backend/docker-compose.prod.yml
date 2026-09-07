@@ -1,1 +1,43 @@
-# 预发布/生产编排占位
+# =============================================================================
+# 生产/预发布加固覆盖层（规范 §15：TLS 终结、日志轮转、更强重启策略）
+#
+# 用法（在 backend/ 目录下执行）：
+#   1) 放置证书到 backend/certs/（gitignore）：fullchain.pem / privkey.pem
+#   2) docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build
+#
+# 说明：基线 docker-compose.yml 已可一条命令起全栈（HTTP 80）；
+#       本文件仅追加真实生产所需的 TLS 与运维加固项。
+# =============================================================================
+
+services:
+  nginx:
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ../nginx/conf.d/tls.conf:/etc/nginx/conf.d/tls.conf:ro
+      - ./certs:/etc/nginx/certs:ro
+
+  app:
+    restart: always
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "5"
+
+  celery-worker:
+    restart: always
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "5"
+
+  celery-beat:
+    restart: always
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "5"

@@ -1,1 +1,40 @@
-# 开发 Dockerfile 占位（源码热重载）
+# =============================================================================
+# 开发镜像：安装全部依赖（含 requirements-dev.txt），uvicorn --reload 热重载
+# 规范 §15：开发用 docker-compose.dev.yml（挂载源码热重载）
+#
+#   注意：ragas 等开发期依赖仅进开发镜像，禁止进生产镜像（规范 §5/§9.7）
+# =============================================================================
+
+FROM python:3.12-slim
+
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    PYTHONPATH=/app \
+    PATH="/opt/venv/bin:$PATH" \
+    TZ=Asia/Shanghai
+
+# 系统依赖：curl(healthcheck) procps(pgrep) tzdata(时区) ca-certificates(HTTPS)
+RUN apt-get update && apt-get install -y --no-install-recommends \
+        ca-certificates curl procps tzdata \
+    && rm -rf /var/lib/apt/lists/* \
+    && groupadd --gid 10001 app \
+    && useradd --uid 10001 --gid app --create-home --home-dir /home/app app \
+    && mkdir -p /home/app/celerybeat \
+    && chown -R app:app /home/app
+
+WORKDIR /app
+
+# 依赖分层缓存（含 dev 依赖：pytest/mypy/ragas 等）
+COPY requirements.txt requirements-dev.txt ./
+RUN python -m venv /opt/venv \
+    && /opt/venv/bin/pip install --upgrade pip \
+    && /opt/venv/bin/pip install -r requirements-dev.txt
+
+COPY --chown=app:app . .
+
+USER app
+
+EXPOSE 8006
+
+# 源码由 dev overlay 挂载 ./:/app，--reload 监听变更热重载
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8006", "--reload"]

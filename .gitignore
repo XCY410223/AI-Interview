@@ -8,6 +8,7 @@ uploads/
 celerybeat-schedule.db
 *.key
 *.pem
+certs/
 
 # === Python ===
 __pycache__/
