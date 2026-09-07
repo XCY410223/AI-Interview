@@ -1,0 +1,18 @@
+# 质量门禁统一配置（规范 §5/§14.2）：isort / mypy / pytest / coverage
+# 说明：flake8 单独走 .flake8（flake8 原生不支持 pyproject.toml）
+
+[tool.isort]
+profile = "black"
+line_length = 120
+known_first_party = ["app"]
+
+[tool.mypy]
+python_version = "3.12"
+# 骨架期宽松：第三方缺 stub / 未安装一律不阻断；M2 起按规范收紧
+ignore_missing_imports = true
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
+[tool.coverage.run]
+source = ["app"]

@@ -1,0 +1,101 @@
+name: CI
+
+# 空提交 push 即可触发全量校验（规范 §14.2 验收：空提交触发 CI 全绿）
+on:
+  push:
+    branches: ['**']
+  pull_request:
+    branches: ['**']
+
+jobs:
+  # ---- 阶段 1：quick-check（语法编译 + flake8 + isort + mypy）----
+  quick-check:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      # 仅装 lint 工具（版本对齐 requirements-dev.txt），换取秒级反馈
+      - name: Install lint tools
+        run: pip install "flake8>=7" "isort>=5.13" "mypy>=1.8"
+      - name: Compile check
+        run: python -m compileall -q app
+      - name: flake8
+        run: flake8 app
+      - name: isort
+        run: isort --check-only --diff app
+      - name: mypy
+        run: mypy app
+
+  # ---- 阶段 2：test（pytest 全量 + 覆盖率 ≥60%）----
+  test:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+          cache-dependency-path: backend/requirements*.txt
+      # 运行时依赖 + 测试运行器（ragas/langchain 等评估依赖仅 M4 评估需要，不参与单测）
+      - name: Install dependencies
+        run: pip install -r requirements.txt pytest pytest-cov
+      - name: Run tests with coverage
+        run: pytest --cov=app --cov-report=term-missing --cov-fail-under=60
+
+  # ---- 阶段 3：lint-frontend（eslint + vue-tsc）----
+  lint-frontend:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Install dependencies
+        run: npm ci
+      - name: ESLint
+        run: npm run lint
+      - name: vue-tsc type-check
+        run: npm run type-check
+
+  # ---- 阶段 4：build（后端镜像构建 + 前端产物构建）----
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build backend image
+        uses: docker/build-push-action@v6
+        with:
+          context: backend
+          push: false
+          tags: ai-interview/app:ci
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install frontend dependencies
+        run: npm ci
+        working-directory: frontend
+
+      - name: Build frontend
+        run: npm run build
+        working-directory: frontend
