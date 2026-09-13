@@ -1,9 +1,12 @@
 """统一异常体系（规范 §6.3/§8.3）。
 
 业务异常继承 AppError（code / message / http_status），
-由全局 ExceptionHandler 转为统一响应 `{"code": ..., "message": ..., "data": ...}`。
+由全局 ExceptionHandler 转为统一响应 `{"code": ..., "message": ..., "data": null}`。
 生产环境禁止泄漏堆栈/内部错误信息。
+
+错误码按模块前缀：AUTH_* / RESUME_* / INTERVIEW_* / AI_*（规范 §8.3）。
 """
+from __future__ import annotations
 
 
 class AppError(Exception):
@@ -19,8 +22,14 @@ class AppError(Exception):
         super().__init__(self.message)
 
 
-# 模块前缀错误码示例（规范 §8.3）：
-# AUTH_* / RESUME_* / INTERVIEW_* / AI_*（如 AI_TIMEOUT、AI_OVERLOAD）
+# ---- AI（LLM 调用相关，规范 §8.3/§9.1）----
+class AIClientError(AppError):
+    """LLM 客户端调用最终失败（未配置/主备模型均不可用/返回非法 JSON 等）。"""
+
+    code = "AI_CLIENT_ERROR"
+    http_status = 502
+
+
 class AITimeoutError(AppError):
     code = "AI_TIMEOUT"
     http_status = 503
@@ -29,3 +38,75 @@ class AITimeoutError(AppError):
 class AIOverloadError(AppError):
     code = "AI_OVERLOAD"
     http_status = 503
+
+
+# ---- AUTH（规范 §3.3/§6.3）----
+class AuthError(AppError):
+    """账户模块异常基类（不直接抛出）。"""
+
+
+class AuthInvalidCredentials(AuthError):
+    """登录失败，不区分邮箱不存在 vs 密码错（防枚举，§3.4）。"""
+
+    code = "AUTH_INVALID_CREDENTIALS"
+    http_status = 401
+
+
+class AuthEmailTaken(AuthError):
+    code = "AUTH_EMAIL_TAKEN"
+    http_status = 409
+
+
+class AuthTokenExpired(AuthError):
+    code = "AUTH_TOKEN_EXPIRED"
+    http_status = 401
+
+
+class AuthTokenRevoked(AuthError):
+    code = "AUTH_TOKEN_REVOKED"
+    http_status = 401
+
+
+class AuthRateLimited(AuthError):
+    code = "AUTH_RATE_LIMITED"
+    http_status = 429
+
+
+# ---- RESUME（规范 §4.5/§11.3）----
+class ResumeError(AppError):
+    """简历模块异常基类（不直接抛出）。"""
+
+
+class ResumeInvalidExtension(ResumeError):
+    code = "RESUME_INVALID_EXTENSION"
+    http_status = 400
+
+
+class ResumeInvalidMime(ResumeError):
+    code = "RESUME_INVALID_MIME"
+    http_status = 400
+
+
+class ResumeFilenameInvalid(ResumeError):
+    code = "RESUME_FILENAME_INVALID"
+    http_status = 400
+
+
+class ResumeFileTooLarge(ResumeError):
+    code = "RESUME_FILE_TOO_LARGE"
+    http_status = 413
+
+
+class ResumeNotFound(ResumeError):
+    code = "RESUME_NOT_FOUND"
+    http_status = 404
+
+
+class ResumeForbidden(ResumeError):
+    code = "RESUME_FORBIDDEN"
+    http_status = 403
+
+
+class ResumeFileCorrupted(ResumeError):
+    code = "RESUME_FILE_CORRUPTED"
+    http_status = 422
