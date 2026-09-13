@@ -25,9 +25,6 @@ services:
       - .:/app
 
   celery-worker:
-    build:
-      context: .
-      dockerfile: Dockerfile.dev
     image: ai-interview/app:dev
     environment:
       APP_ENV: development
@@ -36,9 +33,6 @@ services:
       - .:/app
 
   celery-beat:
-    build:
-      context: .
-      dockerfile: Dockerfile.dev
     image: ai-interview/app:dev
     environment:
       APP_ENV: development

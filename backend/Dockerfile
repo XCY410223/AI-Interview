@@ -20,11 +20,14 @@ ENV PIP_NO_CACHE_DIR=1 \
 
 WORKDIR /build
 
+# 国内 PyPI 镜像（可用 --build-arg PIP_INDEX_URL=https://pypi.org/simple 覆盖）
+ARG PIP_INDEX_URL=https://pypi.tuna.tsinghua.edu.cn/simple
+
 # 依赖分层缓存：仅拷贝 requirements，依赖未变则复用该层
 COPY requirements.txt .
 RUN python -m venv /opt/venv \
-    && /opt/venv/bin/pip install --upgrade pip \
-    && /opt/venv/bin/pip install -r requirements.txt
+    && /opt/venv/bin/pip install --upgrade pip -i ${PIP_INDEX_URL} \
+    && /opt/venv/bin/pip install -r requirements.txt -i ${PIP_INDEX_URL}
 
 ########## Stage 2: runtime —— 精简运行镜像 ##########
 FROM python:3.12-slim AS runtime
@@ -35,8 +38,12 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     PATH="/opt/venv/bin:$PATH" \
     TZ=Asia/Shanghai
 
+# 国内 Debian 镜像（可用 --build-arg APT_MIRROR=deb.debian.org 覆盖）
+ARG APT_MIRROR=mirrors.tuna.tsinghua.edu.cn
+
 # 运行时系统依赖：ca-certificates(HTTPS 调 LLM) curl(healthcheck) procps(pgrep) tzdata(时区)
-RUN apt-get update && apt-get install -y --no-install-recommends \
+RUN sed -i "s|deb.debian.org|${APT_MIRROR}|g" /etc/apt/sources.list.d/debian.sources \
+    && apt-get update && apt-get install -y --no-install-recommends \
         ca-certificates curl procps tzdata \
     && rm -rf /var/lib/apt/lists/* \
     && groupadd --gid 10001 app \

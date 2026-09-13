@@ -21,11 +21,9 @@
 
 name: ai-interview
 
-# 后端服务共享的构建与通用配置（app / celery-worker / celery-beat / flower 复用）
+# 后端服务共享的通用配置（app / celery-worker / celery-beat / flower 复用）
+# 注意：build 只挂在 app 一个服务上，其余服务仅引用 image，避免 BuildKit 并发导出同一 tag 报 "already exists"
 x-backend: &backend
-  build:
-    context: .
-    dockerfile: Dockerfile
   image: ai-interview/app:latest
   restart: unless-stopped
   env_file:
@@ -44,11 +42,19 @@ x-app-env: &app-env
   REDIS_PORT: "6379"
   CELERY_BROKER_URL: redis://redis:6379/1
   CELERY_RESULT_BACKEND: redis://redis:6379/2
+  S3_ENDPOINT: http://minio:9000
+  S3_ACCESS_KEY: ${S3_ACCESS_KEY:-minioadmin}
+  S3_SECRET_KEY: ${S3_SECRET_KEY:-minioadmin}
+  S3_BUCKET: ${S3_BUCKET:-ai-interview}
+  S3_REGION: us-east-1
 
 services:
   # ---- Web 应用（gunicorn 多 worker，非 root，命令见 Dockerfile）----
   app:
     <<: *backend
+    build:
+      context: .
+      dockerfile: Dockerfile
     environment:
       <<: *app-env
     expose:
@@ -140,6 +146,46 @@ services:
     networks:
       - backend
 
+  # ---- MinIO 对象存储（dev；prod 用 COS，规范 §3.3/§15）----
+  minio:
+    image: minio/minio:latest
+    restart: unless-stopped
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: ${S3_ACCESS_KEY:-minioadmin}
+      MINIO_ROOT_PASSWORD: ${S3_SECRET_KEY:-minioadmin}
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    volumes:
+      - minio_data:/data
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    networks:
+      - backend
+
+  # ---- MinIO bucket 初始化（幂等，一次）----
+  minio-init:
+    image: minio/mc:latest
+    depends_on:
+      minio:
+        condition: service_healthy
+    entrypoint: >
+      /bin/sh -c "
+      until mc alias set local http://minio:9000 $${MINIO_ROOT_USER} $${MINIO_ROOT_PASSWORD}; do sleep 2; done;
+      mc mb --ignore-existing local/$${S3_BUCKET:-ai-interview};
+      "
+    environment:
+      MINIO_ROOT_USER: ${S3_ACCESS_KEY:-minioadmin}
+      MINIO_ROOT_PASSWORD: ${S3_SECRET_KEY:-minioadmin}
+      S3_BUCKET: ${S3_BUCKET:-ai-interview}
+    networks:
+      - backend
+
   # ---- Nginx（反向代理 + 静态资源；TLS 见 prod 覆盖层，规范 §15）----
   nginx:
     image: nginx:1.27-alpine
@@ -213,3 +259,4 @@ volumes:
   redis_data:
   celerybeat_data:
   backup_data:
+  minio_data:

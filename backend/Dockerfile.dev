@@ -13,8 +13,12 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     PATH="/opt/venv/bin:$PATH" \
     TZ=Asia/Shanghai
 
+# 国内 Debian 镜像（可用 --build-arg APT_MIRROR=deb.debian.org 覆盖）
+ARG APT_MIRROR=mirrors.tuna.tsinghua.edu.cn
+
 # 系统依赖：curl(healthcheck) procps(pgrep) tzdata(时区) ca-certificates(HTTPS)
-RUN apt-get update && apt-get install -y --no-install-recommends \
+RUN sed -i "s|deb.debian.org|${APT_MIRROR}|g" /etc/apt/sources.list.d/debian.sources \
+    && apt-get update && apt-get install -y --no-install-recommends \
         ca-certificates curl procps tzdata \
     && rm -rf /var/lib/apt/lists/* \
     && groupadd --gid 10001 app \
@@ -24,11 +28,14 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 WORKDIR /app
 
+# 国内 PyPI 镜像（可用 --build-arg PIP_INDEX_URL=https://pypi.org/simple 覆盖）
+ARG PIP_INDEX_URL=https://pypi.tuna.tsinghua.edu.cn/simple
+
 # 依赖分层缓存（含 dev 依赖：pytest/mypy/ragas 等）
 COPY requirements.txt requirements-dev.txt ./
 RUN python -m venv /opt/venv \
-    && /opt/venv/bin/pip install --upgrade pip \
-    && /opt/venv/bin/pip install -r requirements-dev.txt
+    && /opt/venv/bin/pip install --upgrade pip -i ${PIP_INDEX_URL} \
+    && /opt/venv/bin/pip install -r requirements-dev.txt -i ${PIP_INDEX_URL}
 
 COPY --chown=app:app . .
 
