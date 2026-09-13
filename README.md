@@ -101,8 +101,11 @@ docker compose up -d --build  # 一条命令起全栈
 
 > 注意：`docker compose down -v` 会清空数据卷，属危险命令（CLAUDE.md 红线），请勿执行。
 
-## 下一步（对应计划书 M0）
+## 下一步（对应计划书 M0/M1）
 
 - ~~M0-2：实现 `docker-compose.yml` + Dockerfile（healthcheck/非 root/多阶段构建）~~ ✅
 - ~~M0-3：`.github/workflows/` 建 CI（quick-check/test/lint-frontend/build，覆盖率 ≥60%）~~ ✅
-- M0-4：实现 `core/llm/client.py`（超时/重试/降级/token 计量）
+- ~~M0-4：实现 `core/llm/client.py`（超时/重试/降级/token 计量）~~ ✅
+- **M1：账户 + 简历（注册/登录/上传/异步解析/结构化展示）** ✅（完成报告见桌面 `M1 完成报告.md`）
+
+M1 已部署：Docker 全栈 running、迁移已执行 0002(head)；剩余 LLM 冒烟 + 人工评审。
