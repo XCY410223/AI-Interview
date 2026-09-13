@@ -1,0 +1,75 @@
+"""core/security 单测：bcrypt 成本/校验、JWT 编解码/过期、refresh jti、存根 hash。"""
+from __future__ import annotations
+
+from datetime import datetime, timedelta, timezone
+
+import jwt as pyjwt
+import pytest
+
+from app.core.config import settings
+from app.core.security import (
+    create_access_token,
+    create_refresh_token,
+    decode_token,
+    hash_password,
+    hash_refresh_token,
+    verify_password,
+)
+
+
+def test_hash_and_verify_roundtrip():
+    hashed = hash_password("secret123", cost=4)
+    assert hashed != "secret123"
+    assert verify_password("secret123", hashed)
+    assert not verify_password("wrong", hashed)
+
+
+def test_default_cost_is_12():
+    hashed = hash_password("secret123")  # 默认 cost=12
+    assert hashed.split("$")[2] == "12"
+
+
+def test_verify_invalid_hash_returns_false():
+    assert verify_password("x", "not-a-bcrypt-hash") is False
+
+
+def test_access_token_roundtrip():
+    token = create_access_token(42)
+    payload = decode_token(token, expected_type="access")
+    assert payload["sub"] == "42"
+    assert payload["type"] == "access"
+
+
+def test_access_token_expired():
+    payload = {
+        "sub": "1",
+        "type": "access",
+        "exp": datetime.now(timezone.utc) - timedelta(seconds=10),
+    }
+    token = pyjwt.encode(payload, settings.SECRET_KEY, algorithm="HS256")
+    with pytest.raises(pyjwt.ExpiredSignatureError):
+        decode_token(token, expected_type="access")
+
+
+def test_decode_wrong_type_rejected():
+    token = create_access_token(1)
+    with pytest.raises(pyjwt.InvalidTokenError):
+        decode_token(token, expected_type="refresh")
+
+
+def test_decode_tampered_token_rejected():
+    token = create_access_token(1)
+    with pytest.raises(pyjwt.PyJWTError):
+        decode_token(token[:-1] + ("a" if token[-1] != "a" else "b"))
+
+
+def test_refresh_token_carries_jti():
+    token, jti = create_refresh_token(7)
+    payload = decode_token(token, expected_type="refresh")
+    assert payload["jti"] == jti
+    assert payload["sub"] == "7"
+
+
+def test_hash_refresh_token_stable_and_distinct():
+    assert hash_refresh_token("abc") == hash_refresh_token("abc")
+    assert hash_refresh_token("abc") != hash_refresh_token("abd")
