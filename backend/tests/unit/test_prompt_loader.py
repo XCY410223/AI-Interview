@@ -6,6 +6,7 @@ from types import SimpleNamespace
 import pytest
 
 from app.prompts.interview import answer_evaluation, follow_up_decision, question_generation
+from app.prompts.interview.styles import deep, friendly, stress
 from app.services.common.prompt_loader import PromptVersionError, load_template, require_version
 
 
@@ -35,5 +36,5 @@ def test_load_template_missing_attr_raises():
 
 
 def test_all_interview_prompts_have_version():
-    for mod in (question_generation, answer_evaluation, follow_up_decision):
+    for mod in (question_generation, answer_evaluation, follow_up_decision, friendly, stress, deep):
         assert require_version(mod) == "1.0"
