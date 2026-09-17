@@ -19,6 +19,7 @@ from pathlib import Path
 from eval.judge.judge_config import JUDGE_CONFIG
 from app.schemas.interview import QuestionItem
 from app.services.interview.ai_service import InterviewAIService
+from app.services.interview.style_resolver import resolve_style
 
 
 def _load_dataset(path: str) -> list[dict]:
@@ -48,7 +49,7 @@ async def _run(rows: list[dict], kind: str) -> list[dict]:
                                  reference_points=[], difficulty="medium")
                 d = await service.decide_follow_up(
                     question=q, answer_history=row.get("answer_history", []),
-                    current_round=row.get("round", 0),
+                    current_round=row.get("round", 0), style=resolve_style("friendly"),
                 )
                 value = {"need_follow_up": d.need_follow_up, "follow_up_hint": d.follow_up_hint, "reason": d.reason}
             status = "ok"

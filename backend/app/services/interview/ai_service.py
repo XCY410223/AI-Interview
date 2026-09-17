@@ -16,6 +16,7 @@ from app.prompts.interview.answer_evaluation import EVALUATION_FEEDBACK_PROMPT, 
 from app.prompts.interview.follow_up_decision import FOLLOW_UP_DECISION_PROMPT
 from app.prompts.interview.question_generation import QUESTION_GENERATION_PROMPT
 from app.schemas.interview import QuestionItem
+from app.services.interview.style_resolver import StylePrompts
 
 logger = logging.getLogger(__name__)
 
@@ -104,8 +105,10 @@ class InterviewAIService:
         *,
         question: QuestionItem,
         answer: str,
+        style: StylePrompts,
     ) -> AsyncIterator[str]:
         system = EVALUATION_FEEDBACK_PROMPT.format(
+            feedback_tone=style.feedback_tone,
             question_content=question.content,
             reference_points=_join_points(question.reference_points),
         )
@@ -151,8 +154,10 @@ class InterviewAIService:
         question: QuestionItem,
         answer_history: list[str],
         current_round: int,
+        style: StylePrompts,
     ) -> FollowUpDecision:
         system = FOLLOW_UP_DECISION_PROMPT.format(
+            followup_tone=style.followup_tone,
             question_content=question.content,
             reference_points=_join_points(question.reference_points),
             current_round=current_round,
