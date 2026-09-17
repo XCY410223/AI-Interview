@@ -3,6 +3,8 @@ from __future__ import annotations
 
 from types import SimpleNamespace
 
+from app.schemas.interview import QuestionItem
+
 
 class FakeRedis:
     """dict-backed async redis，覆盖限流（zset）与黑名单（get/set）。"""
@@ -167,3 +169,30 @@ def make_resume(
         parsed_content=None, error_message=None, retry_count=retry_count,
         uploaded_at=None, processed_at=None, deleted_at=None,
     )
+
+
+def _default_questions() -> list[dict]:
+    return [
+        {"question_index": 0, "round": 0, "category": "项目", "content": "介绍你最复杂的项目",
+         "reference_points": ["技术选型", "难点"], "difficulty": "medium"},
+        {"question_index": 1, "round": 0, "category": "知识", "content": "解释索引原理",
+         "reference_points": ["B+树"], "difficulty": "medium"},
+        {"question_index": 2, "round": 0, "category": "行为", "content": "如何处理冲突",
+         "reference_points": ["沟通"], "difficulty": "medium"},
+    ]
+
+
+def _to_question_items(raw: list) -> list:
+    return [q if isinstance(q, QuestionItem) else QuestionItem.model_validate(q) for q in raw]
+
+
+class FakeAIService:
+    """测试用 AI 服务：可编程出题结果，记录调用参数（M2-PR1）。"""
+
+    def __init__(self, questions: list | None = None):
+        self.questions = _to_question_items(questions or _default_questions())
+        self.generate_calls: list[dict] = []
+
+    async def generate_questions(self, **kw):
+        self.generate_calls.append(kw)
+        return self.questions
