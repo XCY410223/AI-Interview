@@ -110,3 +110,23 @@ class ResumeForbidden(ResumeError):
 class ResumeFileCorrupted(ResumeError):
     code = "RESUME_FILE_CORRUPTED"
     http_status = 422
+
+
+# ---- INTERVIEW（规范 §8.3）----
+class InterviewError(AppError):
+    """面试模块异常基类（不直接抛出）。"""
+
+
+class InterviewNotFound(InterviewError):
+    code = "INTERVIEW_NOT_FOUND"
+    http_status = 404
+
+
+class InterviewForbidden(InterviewError):
+    code = "INTERVIEW_FORBIDDEN"
+    http_status = 403
+
+
+class InterviewInvalidState(InterviewError):
+    code = "INTERVIEW_INVALID_STATE"
+    http_status = 409

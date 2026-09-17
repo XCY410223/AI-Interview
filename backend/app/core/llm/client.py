@@ -19,6 +19,7 @@ import hashlib
 import json
 import logging
 import time
+from collections.abc import AsyncIterator
 from dataclasses import dataclass
 from typing import Any
 
@@ -153,6 +154,35 @@ class LLMClient:
             return result
 
         raise LLMError(f"LLM 主/备模型均不可用: {last_error}") from last_error
+
+    async def chat_stream(
+        self,
+        messages: list[dict],
+        *,
+        model: str | None = None,
+    ) -> AsyncIterator[str]:
+        """流式调用（评语流，规范 §8.2）：逐 token 产出内容片段。
+
+        与 chat() 的区别：不重试、不降级——流式中途失败无法安全重放，
+        网络/超时错误直接抛 LLMError，由上层转 error 事件（§8.2）。
+        """
+        client = self._client
+        if client is None:
+            raise LLMError("LLM 未配置（缺少 LLM_API_KEY）")
+        current = model or settings.LLM_PRIMARY_MODEL
+        try:
+            kwargs: dict[str, Any] = {"model": current, "messages": messages, "stream": True}
+            stream = await client.chat.completions.create(**kwargs)
+        except Exception as exc:
+            raise LLMError(f"LLM 流式调用失败（{current}）: {exc}") from exc
+        async for chunk in stream:
+            choices = getattr(chunk, "choices", None) or []
+            if not choices:
+                continue
+            delta = getattr(choices[0], "delta", None)
+            content = (getattr(delta, "content", None) or "") if delta else ""
+            if content:
+                yield content
 
     async def _call_with_retry(
         self,
