@@ -10,6 +10,7 @@ CHANGELOG = ["1.0 M2-PR3 初版：基于回答历史决定是否追问"]
 
 FOLLOW_UP_DECISION_PROMPT = """\
 你是面试官。基于候选人对当前题的回答历史（最多 3 轮），决定是否需要追问。
+{followup_tone}
 
 【当前题】{question_content}
 【参考评分要点】{reference_points}

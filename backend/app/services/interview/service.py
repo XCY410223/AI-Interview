@@ -28,6 +28,7 @@ from app.schemas.interview_message import InterviewMessageOut
 from app.services.interview.ai_service import InterviewAIService
 from app.services.interview.sse_emitter import SSEEmitter
 from app.services.interview.state_machine import NextAction, decide_next
+from app.services.interview.style_resolver import resolve_style
 
 logger = logging.getLogger(__name__)
 
@@ -162,6 +163,7 @@ class InterviewService:
     ) -> AsyncIterator[SSEEvent]:
         interview_id = interview.id
         question_index = interview.current_question_index
+        style = resolve_style(interview.style)
         question = _get_question(interview, question_index)
         if question is None:
             yield emitter.error("INVALID_STATE", "当前题目不存在")
@@ -182,7 +184,7 @@ class InterviewService:
 
         # 1) 评语流 → chunk 事件（流式失败 → error，不进入评分）
         try:
-            async for delta in ai_service.stream_feedback(question=question, answer=content):
+            async for delta in ai_service.stream_feedback(question=question, answer=content, style=style):
                 yield emitter.chunk(delta)
         except LLMError as exc:
             logger.warning("评语流失败 interview_id=%s: %s", interview_id, exc)
@@ -195,7 +197,7 @@ class InterviewService:
         # 3) 追问决策（基于前几轮历史，内部已兜底，不抛）
         history = await _answer_history(db, interview_id, question_index, before_round=round_)
         followup = await ai_service.decide_follow_up(
-            question=question, answer_history=history, current_round=round_
+            question=question, answer_history=history, current_round=round_, style=style
         )
 
         # 4) 状态机推进

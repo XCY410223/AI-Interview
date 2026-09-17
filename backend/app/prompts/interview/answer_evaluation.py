@@ -12,6 +12,7 @@ CHANGELOG = ["1.0 M2-PR2 初版：评分 JSON 与评语流分离，反污染防�
 # 评语流（非 JSON，逐 token 输出 → chunk 事件；候选人回答在 role=user 段）
 EVALUATION_FEEDBACK_PROMPT = """\
 你是面试官。针对候选人对当前题的回答，输出面试点评。
+{feedback_tone}
 
 【当前题】{question_content}
 【参考评分要点】{reference_points}

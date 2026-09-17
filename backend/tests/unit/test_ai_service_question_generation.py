@@ -7,6 +7,7 @@ from types import SimpleNamespace
 from app.core.llm.client import LLMError
 from app.schemas.interview import QuestionItem
 from app.services.interview.ai_service import FALLBACK_SCORE, InterviewAIService
+from app.services.interview.style_resolver import resolve_style
 
 
 def _result(data=None, content=""):
@@ -101,14 +102,14 @@ def test_evaluate_score_fallback_after_two_failures():
 
 def test_decide_follow_up_true():
     svc = InterviewAIService(client=FakeLLM([_result({"need_follow_up": True, "follow_up_hint": "细节？", "reason": "缺细节"})]))
-    d = run(svc.decide_follow_up(question=_q(), answer_history=["x"], current_round=0))
+    d = run(svc.decide_follow_up(question=_q(), answer_history=["x"], current_round=0, style=resolve_style("friendly")))
     assert d.need_follow_up is True
     assert d.follow_up_hint == "细节？"
 
 
 def test_decide_follow_up_fallback():
     svc = InterviewAIService(client=FakeLLM([LLMError("bad"), LLMError("bad")]))
-    d = run(svc.decide_follow_up(question=_q(), answer_history=["x"], current_round=0))
+    d = run(svc.decide_follow_up(question=_q(), answer_history=["x"], current_round=0, style=resolve_style("friendly")))
     assert d.need_follow_up is False
 
 
@@ -121,7 +122,7 @@ def test_stream_feedback_uses_chat_stream():
     svc = InterviewAIService(client=StreamingLLM([_result(_questions(1))]))
 
     async def collect():
-        return [p async for p in svc.stream_feedback(question=_q(), answer="y")]
+        return [p async for p in svc.stream_feedback(question=_q(), answer="y", style=resolve_style("friendly"))]
 
     assert asyncio.run(collect()) == ["你", "不错"]
 
@@ -131,7 +132,7 @@ def test_stream_feedback_falls_back_to_chunking():
     svc = InterviewAIService(client=FakeLLM([_result(content=content)]))
 
     async def collect():
-        return [p async for p in svc.stream_feedback(question=_q(), answer="y")]
+        return [p async for p in svc.stream_feedback(question=_q(), answer="y", style=resolve_style("friendly"))]
 
     pieces = asyncio.run(collect())
     assert "".join(pieces) == content
