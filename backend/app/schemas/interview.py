@@ -1,4 +1,4 @@
-"""面试模块 schema：场次配置、出题（M2 计划 §二 PR1）。
+"""面试模块 schema：场次配置、出题、提交回答（M2 计划 §二 PR1/PR2）。
 
 契约先行冻结：风格/难度/题数在 start 入参一次性确定，之后仅凭 interview_id 推进。
 """
@@ -35,3 +35,8 @@ class StartInterviewResponse(BaseModel):
     total_questions: int
     first_question: QuestionItem
     estimated_minutes: int
+
+
+class SubmitAnswerRequest(BaseModel):
+    content: str = Field(min_length=1, max_length=4000)  # §9.4 回答上限 4000 字
+    round: int = Field(ge=0, default=0)

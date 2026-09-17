@@ -182,17 +182,62 @@ def _default_questions() -> list[dict]:
     ]
 
 
+def make_interview(
+    *,
+    interview_id: int = 1,
+    user_id: int = 1,
+    resume_id: int | None = 1,
+    position: str = "后端工程师",
+    difficulty: str = "medium",
+    question_count: int = 3,
+    style: str = "friendly",
+    status: str = "created",
+    current_question_index: int = 0,
+    current_round: int = 0,
+    questions_json: list | None = None,
+    config_json: dict | None = None,
+):
+    return SimpleNamespace(
+        id=interview_id, user_id=user_id, resume_id=resume_id, position=position,
+        difficulty=difficulty, question_count=question_count, style=style, status=status,
+        current_question_index=current_question_index, current_round=current_round,
+        questions_json=questions_json if questions_json is not None else _default_questions(),
+        config_json=config_json, completed_at=None,
+        deleted_at=None, created_at=None, updated_at=None,
+    )
+
+
 def _to_question_items(raw: list) -> list:
     return [q if isinstance(q, QuestionItem) else QuestionItem.model_validate(q) for q in raw]
 
 
 class FakeAIService:
-    """测试用 AI 服务：可编程出题结果，记录调用参数（M2-PR1）。"""
+    """测试用 AI 服务：可编程出题/评语/评分结果，记录调用参数。"""
 
-    def __init__(self, questions: list | None = None):
+    def __init__(
+        self,
+        questions: list | None = None,
+        feedback_chunks: list | None = None,
+        score=None,
+    ):
         self.questions = _to_question_items(questions or _default_questions())
+        self.feedback_chunks = feedback_chunks if feedback_chunks is not None else ["不错，", "有亮点。"]
+        self.score = score if score is not None else SimpleNamespace(
+            score=7.5, dimensions={"completeness": 8.0}, feedback="整体不错"
+        )
         self.generate_calls: list[dict] = []
+        self.stream_calls: list[dict] = []
+        self.score_calls: list[dict] = []
 
     async def generate_questions(self, **kw):
         self.generate_calls.append(kw)
         return self.questions
+
+    async def stream_feedback(self, **kw):
+        self.stream_calls.append(kw)
+        for chunk in self.feedback_chunks:
+            yield chunk
+
+    async def evaluate_score(self, **kw):
+        self.score_calls.append(kw)
+        return self.score

@@ -1,4 +1,4 @@
-"""AI 编排单测：出题（QG-01~06），全 mock，不触网。"""
+"""AI 编排单测：出题 / 评分（QG-01~06 / SSE-04/12），全 mock，不触网。"""
 from __future__ import annotations
 
 import asyncio
@@ -6,7 +6,7 @@ from types import SimpleNamespace
 
 from app.core.llm.client import LLMError
 from app.schemas.interview import QuestionItem
-from app.services.interview.ai_service import InterviewAIService
+from app.services.interview.ai_service import FALLBACK_SCORE, InterviewAIService
 
 
 def _result(data=None, content=""):
@@ -18,6 +18,11 @@ def _questions(n: int) -> dict:
         {"category": "项目", "content": f"题{i}", "reference_points": ["a", "b", "c"], "difficulty": "medium"}
         for i in range(n)
     ]}
+
+
+def _q() -> QuestionItem:
+    return QuestionItem(question_index=0, category="项目", content="介绍你的项目",
+                        reference_points=["技术选型", "难点"], difficulty="medium")
 
 
 class FakeLLM:
@@ -71,3 +76,50 @@ def test_generate_questions_fallback_after_two_failures():
     qs = run(svc.generate_questions(position="后端", difficulty="easy", resume_summary="x", question_count=5))
     assert len(qs) == 5
     assert all(q.category and q.content for q in qs)
+
+
+def test_evaluate_score_ok():
+    svc = InterviewAIService(client=FakeLLM([_result({"score": 7.0, "dimensions": {"completeness": 8.0}, "feedback": "ok"})]))
+    score = run(svc.evaluate_score(question=_q(), answer="我的项目用了 Django"))
+    assert score.score == 7.0
+    assert score.dimensions == {"completeness": 8.0}
+
+
+def test_evaluate_score_missing_dimensions_ok():
+    svc = InterviewAIService(client=FakeLLM([_result({"score": 7.0, "feedback": "ok"})]))
+    score = run(svc.evaluate_score(question=_q(), answer="y"))
+    assert score.score == 7.0
+    assert score.dimensions == {}
+
+
+def test_evaluate_score_fallback_after_two_failures():
+    svc = InterviewAIService(client=FakeLLM([LLMError("bad"), LLMError("bad")]))
+    score = run(svc.evaluate_score(question=_q(), answer="y"))
+    assert score.score == FALLBACK_SCORE == 5.0
+    assert score.dimensions == {}
+
+
+def test_stream_feedback_uses_chat_stream():
+    class StreamingLLM(FakeLLM):
+        async def chat_stream(self, messages):
+            for piece in ["你", "不错"]:
+                yield piece
+
+    svc = InterviewAIService(client=StreamingLLM([_result(_questions(1))]))
+
+    async def collect():
+        return [p async for p in svc.stream_feedback(question=_q(), answer="y")]
+
+    assert asyncio.run(collect()) == ["你", "不错"]
+
+
+def test_stream_feedback_falls_back_to_chunking():
+    content = "回答不错，有深度，技术选型合理，但是对性能瓶颈的分析还可以更深入一些。"
+    svc = InterviewAIService(client=FakeLLM([_result(content=content)]))
+
+    async def collect():
+        return [p async for p in svc.stream_feedback(question=_q(), answer="y")]
+
+    pieces = asyncio.run(collect())
+    assert "".join(pieces) == content
+    assert len(pieces) > 1
