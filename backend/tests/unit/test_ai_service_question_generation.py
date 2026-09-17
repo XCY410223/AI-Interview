@@ -1,4 +1,4 @@
-"""AI 编排单测：出题 / 评分（QG-01~06 / SSE-04/12），全 mock，不触网。"""
+"""AI 编排单测：出题 / 评分 / 追问决策（QG-01~06 / SSE-04/12），全 mock，不触网。"""
 from __future__ import annotations
 
 import asyncio
@@ -97,6 +97,19 @@ def test_evaluate_score_fallback_after_two_failures():
     score = run(svc.evaluate_score(question=_q(), answer="y"))
     assert score.score == FALLBACK_SCORE == 5.0
     assert score.dimensions == {}
+
+
+def test_decide_follow_up_true():
+    svc = InterviewAIService(client=FakeLLM([_result({"need_follow_up": True, "follow_up_hint": "细节？", "reason": "缺细节"})]))
+    d = run(svc.decide_follow_up(question=_q(), answer_history=["x"], current_round=0))
+    assert d.need_follow_up is True
+    assert d.follow_up_hint == "细节？"
+
+
+def test_decide_follow_up_fallback():
+    svc = InterviewAIService(client=FakeLLM([LLMError("bad"), LLMError("bad")]))
+    d = run(svc.decide_follow_up(question=_q(), answer_history=["x"], current_round=0))
+    assert d.need_follow_up is False
 
 
 def test_stream_feedback_uses_chat_stream():

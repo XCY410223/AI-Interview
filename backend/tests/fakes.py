@@ -33,9 +33,14 @@ class FakeRedis:
     async def get(self, key: str) -> str | None:
         return self._data.get(key)
 
-    async def set(self, key: str, value: str, ex: int | None = None) -> bool:
+    async def set(self, key: str, value: str, ex: int | None = None, nx: bool = False) -> bool:
+        if nx and key in self._data:
+            return False
         self._data[key] = value
         return True
+
+    async def delete(self, key: str) -> bool:
+        return self._data.pop(key, None) is not None
 
     async def aclose(self) -> None:
         pass
@@ -207,27 +212,50 @@ def make_interview(
     )
 
 
+def make_interview_message(
+    *,
+    message_id: int = 1,
+    interview_id: int = 1,
+    question_index: int = 0,
+    round_: int = 0,
+    role: str = "candidate",
+    content: str = "回答",
+    event_type: str = "answer",
+    payload_json: dict | None = None,
+):
+    return SimpleNamespace(
+        id=message_id, interview_id=interview_id, question_index=question_index, round=round_,
+        role=role, content=content, event_type=event_type, payload_json=payload_json,
+        created_at=None, updated_at=None, deleted_at=None,
+    )
+
+
 def _to_question_items(raw: list) -> list:
     return [q if isinstance(q, QuestionItem) else QuestionItem.model_validate(q) for q in raw]
 
 
 class FakeAIService:
-    """测试用 AI 服务：可编程出题/评语/评分结果，记录调用参数。"""
+    """测试用 AI 服务：可编程出题/评语/评分/追问结果，记录调用参数。"""
 
     def __init__(
         self,
         questions: list | None = None,
         feedback_chunks: list | None = None,
         score=None,
+        followup=None,
     ):
         self.questions = _to_question_items(questions or _default_questions())
         self.feedback_chunks = feedback_chunks if feedback_chunks is not None else ["不错，", "有亮点。"]
         self.score = score if score is not None else SimpleNamespace(
             score=7.5, dimensions={"completeness": 8.0}, feedback="整体不错"
         )
+        self.followup = followup if followup is not None else SimpleNamespace(
+            need_follow_up=False, follow_up_hint="", reason="回答完整"
+        )
         self.generate_calls: list[dict] = []
         self.stream_calls: list[dict] = []
         self.score_calls: list[dict] = []
+        self.followup_calls: list[dict] = []
 
     async def generate_questions(self, **kw):
         self.generate_calls.append(kw)
@@ -241,3 +269,7 @@ class FakeAIService:
     async def evaluate_score(self, **kw):
         self.score_calls.append(kw)
         return self.score
+
+    async def decide_follow_up(self, **kw):
+        self.followup_calls.append(kw)
+        return self.followup

@@ -1,0 +1,20 @@
+{"id": "QG-001", "position": "后端工程师", "difficulty": "medium", "resume_summary": "3年 Java 后端，熟悉 Spring、MySQL、Redis、Kafka", "question_count": 8, "expected_categories": ["知识", "项目", "行为"], "tags": ["常规"]}
+{"id": "QG-002", "position": "后端工程师", "difficulty": "easy", "resume_summary": "应届生，熟悉 Java 基础和数据结构", "question_count": 6, "expected_categories": ["知识", "算法"], "tags": ["应届"]}
+{"id": "QG-003", "position": "后端工程师", "difficulty": "hard", "resume_summary": "5年资深后端，负责高并发交易系统", "question_count": 10, "expected_categories": ["项目", "算法", "知识"], "tags": ["资深"]}
+{"id": "QG-004", "position": "后端工程师", "difficulty": "medium", "resume_summary": "", "question_count": 8, "expected_categories": ["知识", "项目", "行为"], "tags": ["空简历兜底"]}
+{"id": "QG-005", "position": "前端工程师", "difficulty": "medium", "resume_summary": "3年前端，Vue、React、工程化", "question_count": 8, "expected_categories": ["知识", "项目", "行为"], "tags": ["前端"]}
+{"id": "QG-006", "position": "数据分析师", "difficulty": "medium", "resume_summary": "2年数据分析，SQL、Python、可视化", "question_count": 8, "expected_categories": ["知识", "项目", "行为"], "tags": ["数据"]}
+{"id": "QG-007", "position": "后端工程师", "difficulty": "easy", "resume_summary": "1年后端，熟悉 Python、Django、PostgreSQL", "question_count": 3, "expected_categories": ["知识", "项目"], "tags": ["下限3题"]}
+{"id": "QG-008", "position": "后端工程师", "difficulty": "hard", "resume_summary": "6年，分布式、微服务、消息队列", "question_count": 15, "expected_categories": ["知识", "项目", "算法", "行为"], "tags": ["上限15题"]}
+{"id": "QG-009", "position": "算法工程师", "difficulty": "medium", "resume_summary": "3年算法，推荐系统、深度学习", "question_count": 8, "expected_categories": ["知识", "项目", "算法"], "tags": ["算法岗"]}
+{"id": "QG-010", "position": "后端工程师", "difficulty": "medium", "resume_summary": "4年 Go 后端，云原生、K8s、微服务", "question_count": 8, "expected_categories": ["知识", "项目", "行为"], "tags": ["Go"]}
+{"id": "QG-011", "position": "后端工程师", "difficulty": "medium", "resume_summary": "3年，精通 MySQL 调优、分库分表", "question_count": 8, "expected_categories": ["项目", "知识"], "tags": ["数据库方向"]}
+{"id": "QG-012", "position": "后端工程师", "difficulty": "easy", "resume_summary": "转行，自学 Java 半年", "question_count": 5, "expected_categories": ["知识", "算法"], "tags": ["转行"]}
+{"id": "QG-013", "position": "后端工程师", "difficulty": "hard", "resume_summary": "7年，架构师，负责中台建设", "question_count": 12, "expected_categories": ["项目", "算法", "行为"], "tags": ["架构"]}
+{"id": "QG-014", "position": "后端工程师", "difficulty": "medium", "resume_summary": "2年，熟悉缓存、消息队列、微服务", "question_count": 8, "expected_categories": ["知识", "项目"], "tags": ["常规"]}
+{"id": "QG-015", "position": "后端工程师", "difficulty": "medium", "resume_summary": "3年，做过秒杀系统、分布式事务", "question_count": 8, "expected_categories": ["项目", "知识", "算法"], "tags": ["高并发"]}
+{"id": "QG-016", "position": "后端工程师", "difficulty": "medium", "resume_summary": "3年，电商后端，库存、订单、支付", "question_count": 8, "expected_categories": ["项目", "知识", "行为"], "tags": ["电商"]}
+{"id": "QG-017", "position": "后端工程师", "difficulty": "easy", "resume_summary": "实习经历，熟悉 Java 和 SQL", "question_count": 4, "expected_categories": ["知识", "算法"], "tags": ["实习"]}
+{"id": "QG-018", "position": "后端工程师", "difficulty": "hard", "resume_summary": "5年，精通 Redis、Kafka、分布式锁", "question_count": 10, "expected_categories": ["知识", "项目"], "tags": ["中间件"]}
+{"id": "QG-019", "position": "后端工程师", "difficulty": "medium", "resume_summary": "3年，微服务治理、服务网格", "question_count": 8, "expected_categories": ["项目", "知识"], "tags": ["微服务"]}
+{"id": "QG-020", "position": "后端工程师", "difficulty": "medium", "resume_summary": "3年，熟悉设计模式、领域驱动设计", "question_count": 8, "expected_categories": ["知识", "项目", "行为"], "tags": ["设计"]}

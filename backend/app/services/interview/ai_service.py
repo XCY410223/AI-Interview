@@ -1,4 +1,4 @@
-"""面试 AI 编排（M2-PR1/PR2）：出题 / 评语流 / 评分结构化。
+"""面试 AI 编排（M2-PR1/PR2/PR3）：出题 / 评语流 / 评分结构化 / 追问决策。
 
 红线 6：所有模型调用走统一 LLM 客户端；
 红线 5：结构化输出协议 + Pydantic 校验，禁止正则抠 JSON；
@@ -13,12 +13,13 @@ from dataclasses import dataclass
 
 from app.core.llm.client import LLMClient, LLMError, llm_client
 from app.prompts.interview.answer_evaluation import EVALUATION_FEEDBACK_PROMPT, EVALUATION_SCORE_PROMPT
+from app.prompts.interview.follow_up_decision import FOLLOW_UP_DECISION_PROMPT
 from app.prompts.interview.question_generation import QUESTION_GENERATION_PROMPT
 from app.schemas.interview import QuestionItem
 
 logger = logging.getLogger(__name__)
 
-# 兜底（M2 计划 SSE-04 / SSE-12）
+# 兜底（M2 计划 QG-05 / SSE-04 / SSE-12）
 FALLBACK_SCORE = 5.0
 # 出题兜底分布（近似 30/40/20/10）
 _FALLBACK_CATEGORIES = ("知识", "项目", "项目", "行为", "知识", "项目", "行为", "算法")
@@ -34,6 +35,13 @@ class EvaluationScore:
     feedback: str
 
 
+@dataclass(frozen=True)
+class FollowUpDecision:
+    need_follow_up: bool
+    follow_up_hint: str
+    reason: str
+
+
 def _chunk_text(text: str, size: int = 24) -> list[str]:
     """把整段文本切成小块（模拟流式，供无流式能力的客户端兜底）。"""
     if not text:
@@ -45,8 +53,14 @@ def _join_points(points: list[str]) -> str:
     return "、".join(points) if points else "（无，请基于常识评估）"
 
 
+def _format_history(history: list[str]) -> str:
+    if not history:
+        return "（首轮回答，无前几轮）"
+    return "\n".join(f"第 {i + 1} 轮：{a}" for i, a in enumerate(history))
+
+
 class InterviewAIService:
-    """LLM 调用编排入口：出题 / 评分（评语流分离）。`client` 用于测试注入 fake。"""
+    """LLM 调用编排入口：出题 / 评分（评语流分离）/ 追问决策。`client` 用于测试注入 fake。"""
 
     def __init__(self, client: LLMClient | None = None) -> None:
         self._client = client if client is not None else llm_client
@@ -129,6 +143,33 @@ class InterviewAIService:
         return EvaluationScore(score=FALLBACK_SCORE, dimensions={}, feedback="评分失败，兜底")
 
     # ------------------------------------------------------------------
+    # 追问决策（M2-PR3）
+    # ------------------------------------------------------------------
+    async def decide_follow_up(
+        self,
+        *,
+        question: QuestionItem,
+        answer_history: list[str],
+        current_round: int,
+    ) -> FollowUpDecision:
+        system = FOLLOW_UP_DECISION_PROMPT.format(
+            question_content=question.content,
+            reference_points=_join_points(question.reference_points),
+            current_round=current_round,
+        )
+        messages = [{"role": "system", "content": system}, {"role": "user", "content": _format_history(answer_history)}]
+        for attempt in range(_PARSE_RETRIES):
+            try:
+                result = await self._client.chat(messages, json_mode=True)
+                return self._parse_followup(result.data or {})
+            except (LLMError, KeyError, TypeError, ValueError) as exc:
+                if attempt == 0:
+                    logger.warning("追问决策 JSON 解析失败，重试 1 次: %s", exc)
+                    continue
+                logger.error("追问决策两次失败，兜底不追问: %s", exc)
+        return FollowUpDecision(need_follow_up=False, follow_up_hint="", reason="判定失败，兜底不追问")
+
+    # ------------------------------------------------------------------
     # 解析器（结构化输出 + Pydantic 校验）
     # ------------------------------------------------------------------
     @staticmethod
@@ -168,6 +209,14 @@ class InterviewAIService:
         )
 
     @staticmethod
+    def _parse_followup(data: dict) -> FollowUpDecision:
+        return FollowUpDecision(
+            need_follow_up=bool(data.get("need_follow_up", False)),
+            follow_up_hint=str(data.get("follow_up_hint", "")),
+            reason=str(data.get("reason", "")),
+        )
+
+    @staticmethod
     def _fallback_questions(position: str, question_count: int) -> list[QuestionItem]:
         items: list[QuestionItem] = []
         for i in range(question_count):
@@ -185,4 +234,4 @@ class InterviewAIService:
         return items
 
 
-__all__ = ["EvaluationScore", "FALLBACK_SCORE", "InterviewAIService"]
+__all__ = ["EvaluationScore", "FollowUpDecision", "FALLBACK_SCORE", "InterviewAIService"]
