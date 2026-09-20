@@ -42,9 +42,13 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 ARG APT_MIRROR=mirrors.tuna.tsinghua.edu.cn
 
 # 运行时系统依赖：ca-certificates(HTTPS 调 LLM) curl(healthcheck) procps(pgrep) tzdata(时区)
+# WeasyPrint(M3 PDF)：Pango 系库 + CJK 字体（fonts-wqy-zenhei 约 15MB，缺则中文渲染成方块）
 RUN sed -i "s|deb.debian.org|${APT_MIRROR}|g" /etc/apt/sources.list.d/debian.sources \
     && apt-get update && apt-get install -y --no-install-recommends \
         ca-certificates curl procps tzdata \
+        libpango-1.0-0 libpangoft2-1.0-0 libpangocairo-1.0-0 \
+        libgdk-pixbuf-2.0-0 libffi-dev shared-mime-info \
+        fonts-wqy-zenhei \
     && rm -rf /var/lib/apt/lists/* \
     && groupadd --gid 10001 app \
     && useradd --uid 10001 --gid app --create-home --home-dir /home/app app \
