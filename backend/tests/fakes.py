@@ -230,6 +230,33 @@ def make_interview_message(
     )
 
 
+def make_report(
+    *,
+    report_id: int = 1,
+    interview_id: int = 1,
+    user_id: int = 1,
+    status: str = "pending",
+    prompt_version: str = "1.0",
+    overall_score=None,
+    grade: str | None = None,
+    dimensions_json: list | None = None,
+    payload_json: dict | None = None,
+    pdf_object_key: str | None = None,
+    pdf_generated_at=None,
+    retry_count: int = 0,
+    error_message: str | None = None,
+    generated_at=None,
+):
+    return SimpleNamespace(
+        id=report_id, interview_id=interview_id, user_id=user_id, status=status,
+        prompt_version=prompt_version, overall_score=overall_score, grade=grade,
+        dimensions_json=dimensions_json, payload_json=payload_json,
+        pdf_object_key=pdf_object_key, pdf_generated_at=pdf_generated_at,
+        retry_count=retry_count, error_message=error_message, generated_at=generated_at,
+        created_at=None, updated_at=None, deleted_at=None,
+    )
+
+
 def _to_question_items(raw: list) -> list:
     return [q if isinstance(q, QuestionItem) else QuestionItem.model_validate(q) for q in raw]
 

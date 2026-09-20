@@ -2,6 +2,7 @@
 from app.models.base import Base, PKMixin, SoftDeleteMixin, TimestampMixin
 from app.models.interview import Interview
 from app.models.interview_message import InterviewMessage
+from app.models.report import Report
 from app.models.resume import Resume
 from app.models.token import RefreshToken
 from app.models.user import User
@@ -13,6 +14,7 @@ __all__ = [
     "TimestampMixin",
     "Interview",
     "InterviewMessage",
+    "Report",
     "Resume",
     "RefreshToken",
     "User",
