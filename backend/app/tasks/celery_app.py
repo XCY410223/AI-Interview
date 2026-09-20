@@ -10,6 +10,16 @@ celery_app = Celery(
     "ai-interview",
     broker=settings.CELERY_BROKER_URL,
     backend=settings.CELERY_RESULT_BACKEND,
+    # 显式 include 注册任务模块。
+    # 注意：不能用 autodiscover_tasks(["app.tasks"])——autodiscover 按
+    # "<pkg>.<related_name>"（默认 related_name="tasks"）查找，会去找
+    # app.tasks.tasks 这个不存在的模块，导致 worker 注册表为空，
+    # 任务被丢弃（"Received unregistered task of type 'resume.parse'"）。
+    # 新增任务模块（email/report/rag）时在此同步追加。
+    include=[
+        "app.tasks.resume_parser",
+        "app.tasks.report",
+    ],
 )
 
 celery_app.conf.update(
@@ -21,5 +31,3 @@ celery_app.conf.update(
     task_track_started=True,
     # 任务级超时与重试在各自 task 上声明（规范 §10.2）
 )
-
-celery_app.autodiscover_tasks(["app.tasks"])
