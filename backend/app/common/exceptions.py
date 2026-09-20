@@ -49,6 +49,7 @@ class AuthInvalidCredentials(AuthError):
     """登录失败，不区分邮箱不存在 vs 密码错（防枚举，§3.4）。"""
 
     code = "AUTH_INVALID_CREDENTIALS"
+    message = "邮箱或密码错误"
     http_status = 401
 
 
@@ -129,4 +130,30 @@ class InterviewForbidden(InterviewError):
 
 class InterviewInvalidState(InterviewError):
     code = "INTERVIEW_INVALID_STATE"
+    http_status = 409
+
+
+# ---- REPORT（M3，规范 §8.3）----
+class ReportError(AppError):
+    """报告模块异常基类（不直接抛出）。"""
+
+
+class ReportNotFound(ReportError):
+    """报告不存在或非本人（不返回 403，避免暴露资源存在性，§11.3）。"""
+
+    code = "REPORT_NOT_FOUND"
+    http_status = 404
+
+
+class ReportNotReady(ReportError):
+    """报告尚未生成完成，暂不可导出 PDF。"""
+
+    code = "REPORT_NOT_READY"
+    http_status = 409
+
+
+class InterviewNotFinished(ReportError):
+    """面试尚未结束，无法生成报告。"""
+
+    code = "INTERVIEW_NOT_FINISHED"
     http_status = 409

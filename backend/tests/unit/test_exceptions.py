@@ -1,7 +1,7 @@
 """exceptions 单测：AppError 默认值/覆盖、子类状态码。"""
 import pytest
 
-from app.common.exceptions import AIOverloadError, AITimeoutError, AppError
+from app.common.exceptions import AIOverloadError, AITimeoutError, AppError, AuthInvalidCredentials
 
 
 def test_app_error_defaults():
@@ -32,3 +32,11 @@ def test_ai_overload_error():
 def test_app_error_is_exception():
     with pytest.raises(AppError):
         raise AppError("boom")
+
+
+def test_auth_invalid_credentials_message():
+    """登录失败文案应为「邮箱或密码错误」，而非基类的「服务内部错误」。"""
+    err = AuthInvalidCredentials()
+    assert err.code == "AUTH_INVALID_CREDENTIALS"
+    assert err.message == "邮箱或密码错误"
+    assert err.http_status == 401
