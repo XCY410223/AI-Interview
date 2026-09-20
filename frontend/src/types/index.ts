@@ -82,3 +82,70 @@ export interface UploadResponse {
   task_id?: string | null
   uploaded_at: string
 }
+
+// ---- 报告（M3）----
+export type ReportStatus = 'pending' | 'processing' | 'completed' | 'failed'
+
+export interface DimensionScore {
+  key: string
+  name?: string
+  score: number
+  comment?: string
+}
+
+export interface QuestionScore {
+  question_index: number
+  round: number
+  question: string
+  score: number
+  feedback?: string
+}
+
+export interface ReportDetail {
+  report_id: number
+  interview_id: number
+  status: ReportStatus
+  prompt_version?: string | null
+  overall_score?: number | null
+  grade?: string | null
+  summary?: string | null
+  dimensions: DimensionScore[]
+  strengths: string[]
+  weaknesses: string[]
+  suggestions: string[]
+  hire_recommendation?: string | null
+  question_scores: QuestionScore[]
+  answer_quality_avg?: number | null
+  pdf_ready: boolean
+  error_message?: string | null
+  generated_at?: string | null
+}
+
+export interface ReportListItem {
+  report_id: number
+  interview_id: number
+  status: ReportStatus
+  overall_score?: number | null
+  grade?: string | null
+  generated_at?: string | null
+}
+
+// 雷达维度：与后端 app/schemas/report.py 逐字对齐（前后端唯一真源）
+export const DIMENSION_KEYS = [
+  'fundamentals',
+  'technical_depth',
+  'project_experience',
+  'logical_thinking',
+  'communication',
+  'job_fit',
+] as const
+
+export const DIMENSION_LABELS: Record<string, string> = {
+  fundamentals: '基础知识',
+  technical_depth: '技术深度',
+  project_experience: '项目经验',
+  logical_thinking: '逻辑思维',
+  communication: '表达沟通',
+  job_fit: '岗位匹配',
+}
+
