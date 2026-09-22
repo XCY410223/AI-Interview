@@ -240,20 +240,15 @@ async def _run_export_pdf(
             return {"status": "skipped", "report_id": report_id}  # 产物已存在，幂等
         detail = ReportService.build_detail(report)
 
-    object_key = f"{PDF_OBJECT_KEY_PREFIX}/{report_id}.pdf"
     try:
-        # 渲染 + 上传放同一 try：WeasyPrint 缺系统库 / MinIO 抖动都按瞬时错误处理
         pdf_bytes = _render_pdf(render_report_html(detail))
-        await storage.put_object(object_key, pdf_bytes, "application/pdf")
     except Exception as exc:
-        logger.warning("report pdf export failed report_id=%s: %s", report_id, exc)
-        if task is not None and task.request.retries < task.max_retries:
-            raise task.retry(exc=exc)
-        # 重试耗尽 / 无 task（单测直调）：回写失败原因，供前端明确提示（不再静默）
-        await _mark_pdf_failed(session_factory, report_id, str(exc))
         if task is not None:
-            return {"status": "failed", "report_id": report_id, "error": str(exc)}
+            raise task.retry(exc=exc)
         raise
+
+    object_key = f"{PDF_OBJECT_KEY_PREFIX}/{report_id}.pdf"
+    await storage.put_object(object_key, pdf_bytes, "application/pdf")
 
     async with session_factory() as db:
         report = await db.get(Report, report_id)
@@ -261,17 +256,7 @@ async def _run_export_pdf(
             return {"status": "not_found", "report_id": report_id}
         report.pdf_object_key = object_key
         report.pdf_generated_at = datetime.now(timezone.utc)
-        report.pdf_error_message = None
         await db.commit()
 
     logger.info("report pdf exported report_id=%s object_key=%s", report_id, object_key)
     return {"status": "completed", "report_id": report_id, "object_key": object_key}
-
-
-async def _mark_pdf_failed(session_factory, report_id: int, message: str) -> None:
-    """PDF 导出永久失败：回写失败原因（报告本身已完成，不影响 status）。"""
-    async with session_factory() as db:
-        report = await db.get(Report, report_id)
-        if report is not None:
-            report.pdf_error_message = message
-            await db.commit()

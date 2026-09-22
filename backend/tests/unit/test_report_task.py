@@ -123,29 +123,3 @@ def test_export_pdf_skips_if_exists(monkeypatch):
     report = make_report(report_id=1, status=REPORT_STATUS_COMPLETED, pdf_object_key="reports/1.pdf")
     result = run(_run_export_pdf(1, session_factory=_session_factory(report), storage=FakeStorage()))
     assert result["status"] == "skipped"
-
-
-def test_export_pdf_render_failure_marks_error(monkeypatch):
-    report = make_report(report_id=1, status=REPORT_STATUS_COMPLETED, payload_json=_payload())
-
-    def _boom(_html):
-        raise RuntimeError("libpango 缺失")
-
-    monkeypatch.setattr("app.tasks.report._render_pdf", _boom)
-    with pytest.raises(RuntimeError):
-        run(_run_export_pdf(1, session_factory=_session_factory(report), storage=FakeStorage()))
-    assert report.pdf_object_key is None
-    assert report.pdf_error_message == "libpango 缺失"
-
-
-def test_export_pdf_success_clears_previous_error(monkeypatch):
-    report = make_report(
-        report_id=1, status=REPORT_STATUS_COMPLETED, payload_json=_payload(),
-        pdf_error_message="旧错误",
-    )
-    storage = FakeStorage()
-    monkeypatch.setattr("app.tasks.report._render_pdf", lambda html: b"%PDF-fake")
-    result = run(_run_export_pdf(1, session_factory=_session_factory(report), storage=storage))
-    assert result["status"] == "completed"
-    assert report.pdf_error_message is None
-    assert report.pdf_object_key == "reports/1.pdf"

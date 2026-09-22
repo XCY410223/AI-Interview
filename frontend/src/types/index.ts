@@ -117,7 +117,6 @@ export interface ReportDetail {
   question_scores: QuestionScore[]
   answer_quality_avg?: number | null
   pdf_ready: boolean
-  pdf_error_message?: string | null
   error_message?: string | null
   generated_at?: string | null
 }
