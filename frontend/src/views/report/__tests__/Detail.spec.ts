@@ -78,4 +78,49 @@ describe('ReportDetailView', () => {
     expect(wrapper.text()).toContain('重新生成')
     wrapper.unmount()
   })
+
+  it('shows PDF export failure message when present', async () => {
+    mocks.getReport.mockResolvedValue(
+      makeReport({ status: 'completed', pdf_ready: false, pdf_error_message: 'libpango 缺失' }),
+    )
+    const wrapper = mount(Detail, { global: { plugins: [ElementPlus] } })
+    await flushPromises()
+    expect(wrapper.text()).toContain('PDF 导出失败')
+    expect(wrapper.text()).toContain('libpango 缺失')
+    wrapper.unmount()
+  })
+
+  it('exports and downloads the PDF on button click', async () => {
+    mocks.getReport.mockResolvedValue(makeReport({ status: 'completed', pdf_ready: true }))
+    mocks.exportReportPdf.mockResolvedValue({ report_id: 1, status: 'processing' })
+    mocks.downloadReportPdf.mockResolvedValue(new Blob(['%PDF-fake']))
+
+    const createObjectURL = vi.fn(() => 'blob:mock')
+    const revokeObjectURL = vi.fn()
+    const click = vi.fn()
+    const originalCreate = URL.createObjectURL
+    const originalRevoke = URL.revokeObjectURL
+    const originalClick = HTMLAnchorElement.prototype.click
+    ;(URL as unknown as { createObjectURL: typeof createObjectURL }).createObjectURL = createObjectURL
+    ;(URL as unknown as { revokeObjectURL: typeof revokeObjectURL }).revokeObjectURL = revokeObjectURL
+    HTMLAnchorElement.prototype.click = click
+
+    try {
+      const wrapper = mount(Detail, { global: { plugins: [ElementPlus] } })
+      await flushPromises()
+
+      await wrapper.findAll('.report-actions button')[0].trigger('click')
+      await flushPromises()
+
+      expect(mocks.exportReportPdf).toHaveBeenCalledWith(1)
+      expect(mocks.downloadReportPdf).toHaveBeenCalledWith(1)
+      expect(createObjectURL).toHaveBeenCalled()
+      expect(click).toHaveBeenCalled()
+      wrapper.unmount()
+    } finally {
+      ;(URL as unknown as { createObjectURL: typeof originalCreate }).createObjectURL = originalCreate
+      ;(URL as unknown as { revokeObjectURL: typeof originalRevoke }).revokeObjectURL = originalRevoke
+      HTMLAnchorElement.prototype.click = originalClick
+    }
+  })
 })
