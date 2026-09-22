@@ -41,6 +41,7 @@ class Report(Base, PKMixin, TimestampMixin, SoftDeleteMixin):
     payload_json: Mapped[dict | None] = mapped_column(JSONB, nullable=True)     # 完整报告产物
     pdf_object_key: Mapped[str | None] = mapped_column(String(512), nullable=True)  # MinIO key（红线 8）
     pdf_generated_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    pdf_error_message: Mapped[str | None] = mapped_column(Text, nullable=True)  # PDF 导出永久失败原因（报告本身已完成）
     retry_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0, server_default="0")
     error_message: Mapped[str | None] = mapped_column(Text, nullable=True)
     generated_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)

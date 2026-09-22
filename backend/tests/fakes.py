@@ -243,6 +243,7 @@ def make_report(
     payload_json: dict | None = None,
     pdf_object_key: str | None = None,
     pdf_generated_at=None,
+    pdf_error_message: str | None = None,
     retry_count: int = 0,
     error_message: str | None = None,
     generated_at=None,
@@ -252,6 +253,7 @@ def make_report(
         prompt_version=prompt_version, overall_score=overall_score, grade=grade,
         dimensions_json=dimensions_json, payload_json=payload_json,
         pdf_object_key=pdf_object_key, pdf_generated_at=pdf_generated_at,
+        pdf_error_message=pdf_error_message,
         retry_count=retry_count, error_message=error_message, generated_at=generated_at,
         created_at=None, updated_at=None, deleted_at=None,
     )

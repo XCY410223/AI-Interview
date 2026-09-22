@@ -125,6 +125,7 @@ class ReportService:
             question_scores=[QuestionScore.model_validate(q) for q in question_scores_raw if isinstance(q, dict)],
             answer_quality_avg=payload.get("answer_quality_avg"),
             pdf_ready=bool(report.pdf_object_key),
+            pdf_error_message=report.pdf_error_message,
             error_message=report.error_message,
             generated_at=report.generated_at.isoformat() if report.generated_at else None,
         )
