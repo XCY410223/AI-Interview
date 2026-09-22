@@ -80,7 +80,8 @@ def test_generate_questions_fallback_after_two_failures():
 
 
 def test_evaluate_score_ok():
-    svc = InterviewAIService(client=FakeLLM([_result({"score": 7.0, "dimensions": {"completeness": 8.0}, "feedback": "ok"})]))
+    result = _result({"score": 7.0, "dimensions": {"completeness": 8.0}, "feedback": "ok"})
+    svc = InterviewAIService(client=FakeLLM([result]))
     score = run(svc.evaluate_score(question=_q(), answer="我的项目用了 Django"))
     assert score.score == 7.0
     assert score.dimensions == {"completeness": 8.0}
@@ -101,7 +102,8 @@ def test_evaluate_score_fallback_after_two_failures():
 
 
 def test_decide_follow_up_true():
-    svc = InterviewAIService(client=FakeLLM([_result({"need_follow_up": True, "follow_up_hint": "细节？", "reason": "缺细节"})]))
+    result = _result({"need_follow_up": True, "follow_up_hint": "细节？", "reason": "缺细节"})
+    svc = InterviewAIService(client=FakeLLM([result]))
     d = run(svc.decide_follow_up(question=_q(), answer_history=["x"], current_round=0, style=resolve_style("friendly")))
     assert d.need_follow_up is True
     assert d.follow_up_hint == "细节？"

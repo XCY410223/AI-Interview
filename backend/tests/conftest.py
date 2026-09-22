@@ -4,12 +4,12 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-import pytest
-from fastapi.testclient import TestClient
+import pytest  # noqa: E402
+from fastapi.testclient import TestClient  # noqa: E402
 
-from app.api.v1 import deps
-from app.main import app
-from tests.fakes import FakeRedis, FakeSession
+from app.api.v1 import deps  # noqa: E402
+from app.main import app  # noqa: E402
+from tests.fakes import FakeRedis, FakeSession  # noqa: E402
 
 
 @pytest.fixture

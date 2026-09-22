@@ -29,7 +29,7 @@ def fu_client(client, monkeypatch):
 
 
 def _events(resp):
-    return [json.loads(l[len("data: "):]) for l in resp.text.splitlines() if l.startswith("data: ")]
+    return [json.loads(line[len("data: "):]) for line in resp.text.splitlines() if line.startswith("data: ")]
 
 
 def test_follow_up_round_increments(fu_client):
