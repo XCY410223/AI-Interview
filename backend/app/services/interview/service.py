@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import logging
 from collections.abc import AsyncIterator
+from dataclasses import dataclass
 from datetime import datetime, timezone
 
 from sqlalchemy import select
@@ -22,6 +23,7 @@ from app.models.interview import (
 )
 from app.models.interview_message import ROLE_CANDIDATE, ROLE_INTERVIEWER, InterviewMessage
 from app.models.resume import Resume
+from app.prompts.report import CURRENT_VERSION as REPORT_PROMPT_VERSION
 from app.schemas.interview import InterviewConfig, QuestionItem, StartInterviewResponse
 from app.schemas.interview_event import SSEEvent
 from app.schemas.interview_message import InterviewMessageOut
@@ -29,6 +31,7 @@ from app.services.interview.ai_service import InterviewAIService
 from app.services.interview.sse_emitter import SSEEmitter
 from app.services.interview.state_machine import NextAction, decide_next
 from app.services.interview.style_resolver import resolve_style
+from app.services.report.service import ReportService
 
 logger = logging.getLogger(__name__)
 
@@ -73,6 +76,34 @@ def _advance_state(interview: Interview, action: NextAction) -> None:
     interview.current_question_index = action.question_index
     interview.current_round = action.round
     interview.status = INTERVIEW_STATUS_IN_PROGRESS
+
+
+@dataclass(frozen=True)
+class TurnSnapshot:
+    """一条问答回合（答案 + 该轮评分）。"""
+
+    question_index: int
+    round: int
+    question: str
+    answer: str
+    score: float | None
+    dimensions: dict[str, float]  # completeness/accuracy/depth/clarity
+    feedback: str | None
+
+
+@dataclass(frozen=True)
+class InterviewContext:
+    """报告生成所需的面试上下文（跨模块只读契约，§3.1）。"""
+
+    interview_id: int
+    user_id: int
+    position: str
+    difficulty: str
+    style: str
+    resume_summary: str
+    questions: list[QuestionItem]
+    turns: list[TurnSnapshot]
+    answer_quality_avg: float | None
 
 
 class InterviewService:
@@ -148,6 +179,19 @@ class InterviewService:
             raise InterviewInvalidState("面试已结束")
         if round_ != interview.current_round:
             raise InterviewInvalidState(f"round 不匹配：期望 {interview.current_round}，实际 {round_}")
+        return interview
+
+    @staticmethod
+    async def get_owned_or_none(
+        db: AsyncSession,
+        *,
+        user_id: int,
+        interview_id: int,
+    ) -> Interview | None:
+        """供报告模块校验面试归属（§3.1 只读入口）。不存在/软删/非本人统一返回 None。"""
+        interview = await db.get(Interview, interview_id)
+        if interview is None or interview.deleted_at is not None or interview.user_id != user_id:
+            return None
         return interview
 
     # ------------------------------------------------------------------
@@ -275,6 +319,18 @@ class InterviewService:
                     payload_json={"done": True},
                 )
             )
+            # M3：面试结束自动生成报告（红线 4：异步，不在请求内同步调 LLM）。
+            # 建行职责在 report 模块的 Service（§3.1 禁止面试模块直操 reports 表）。
+            report = await ReportService.create_pending(
+                db,
+                interview_id=interview_id,
+                user_id=interview.user_id,
+                prompt_version=REPORT_PROMPT_VERSION,
+            )
+            try:
+                ReportService.enqueue(report.id)
+            except Exception:  # 投递失败不破坏面试收尾，报告可由 POST /reports 补触发
+                logger.exception("报告任务投递失败 interview_id=%s report_id=%s", interview_id, report.id)
 
         await db.commit()
 
@@ -307,6 +363,100 @@ class InterviewService:
         )
         rows = (await db.execute(stmt)).scalars().all()
         return [InterviewMessageOut.model_validate(m) for m in rows]
+
+    # ------------------------------------------------------------------
+    # 报告上下文（M3：跨模块只读出口，§3.1 禁止报告模块直操面试表）
+    # ------------------------------------------------------------------
+    @staticmethod
+    async def load_for_report(
+        db: AsyncSession,
+        *,
+        interview_id: int,
+        user_id: int,
+    ) -> InterviewContext | None:
+        """读取面试上下文（面试 + 逐题问答与评分 + 答题质量均值），供报告生成使用。
+
+        归属不符 / 面试不存在或已软删 → 返回 None（由调用方决定失败路径）。
+        """
+        interview = await db.get(Interview, interview_id)
+        if interview is None or interview.deleted_at is not None or interview.user_id != user_id:
+            return None
+
+        stmt = (
+            select(InterviewMessage)
+            .where(
+                InterviewMessage.interview_id == interview_id,
+                InterviewMessage.deleted_at.is_(None),
+            )
+            .order_by(
+                InterviewMessage.question_index.asc(),
+                InterviewMessage.round.asc(),
+                InterviewMessage.id.asc(),
+            )
+        )
+        messages = list((await db.execute(stmt)).scalars().all())
+
+        questions: list[QuestionItem] = []
+        q_by_index: dict[int, str] = {}
+        for i in range(len(interview.questions_json or [])):
+            q = _get_question(interview, i)
+            if q is not None:
+                questions.append(q)
+                q_by_index[i] = q.content
+
+        # score 事件按 (question_index, round) 建索引，用于配对 answer
+        score_by_key: dict[tuple[int, int], InterviewMessage] = {}
+        for m in messages:
+            if m.event_type == "score":
+                score_by_key[(m.question_index, m.round)] = m
+
+        turns: list[TurnSnapshot] = []
+        turn_means: list[float] = []
+        for m in messages:
+            if m.event_type != "answer":
+                continue
+            score: float | None = None
+            dims: dict[str, float] = {}
+            feedback: str | None = None
+            sm = score_by_key.get((m.question_index, m.round))
+            if sm is not None and isinstance(sm.payload_json, dict):
+                raw_score = sm.payload_json.get("score")
+                if isinstance(raw_score, (int, float)):
+                    score = float(raw_score)
+                raw_dims = sm.payload_json.get("dimensions")
+                if isinstance(raw_dims, dict):
+                    dims = {str(k): float(v) for k, v in raw_dims.items() if isinstance(v, (int, float))}
+                feedback = sm.content
+            turns.append(
+                TurnSnapshot(
+                    question_index=m.question_index,
+                    round=m.round,
+                    question=q_by_index.get(m.question_index, ""),
+                    answer=m.content or "",
+                    score=score,
+                    dimensions=dims,
+                    feedback=feedback,
+                )
+            )
+            if dims:
+                turn_means.append(sum(dims.values()) / len(dims))
+
+        answer_quality_avg = round(sum(turn_means) / len(turn_means), 1) if turn_means else None
+
+        resume = await db.get(Resume, interview.resume_id) if interview.resume_id else None
+        resume_summary = _resume_summary(resume)
+
+        return InterviewContext(
+            interview_id=interview.id,
+            user_id=interview.user_id,
+            position=interview.position,
+            difficulty=interview.difficulty,
+            style=interview.style,
+            resume_summary=resume_summary,
+            questions=questions,
+            turns=turns,
+            answer_quality_avg=answer_quality_avg,
+        )
 
 
 async def _answer_history(

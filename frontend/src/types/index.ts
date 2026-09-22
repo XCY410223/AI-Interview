@@ -82,3 +82,178 @@ export interface UploadResponse {
   task_id?: string | null
   uploaded_at: string
 }
+
+// ---- 报告（M3）----
+export type ReportStatus = 'pending' | 'processing' | 'completed' | 'failed'
+
+export interface DimensionScore {
+  key: string
+  name?: string
+  score: number
+  comment?: string
+}
+
+export interface QuestionScore {
+  question_index: number
+  round: number
+  question: string
+  score: number
+  feedback?: string
+}
+
+export interface ReportDetail {
+  report_id: number
+  interview_id: number
+  status: ReportStatus
+  prompt_version?: string | null
+  overall_score?: number | null
+  grade?: string | null
+  summary?: string | null
+  dimensions: DimensionScore[]
+  strengths: string[]
+  weaknesses: string[]
+  suggestions: string[]
+  hire_recommendation?: string | null
+  question_scores: QuestionScore[]
+  answer_quality_avg?: number | null
+  pdf_ready: boolean
+  error_message?: string | null
+  generated_at?: string | null
+}
+
+export interface ReportListItem {
+  report_id: number
+  interview_id: number
+  status: ReportStatus
+  overall_score?: number | null
+  grade?: string | null
+  generated_at?: string | null
+}
+
+// 雷达维度：与后端 app/schemas/report.py 逐字对齐（前后端唯一真源）
+export const DIMENSION_KEYS = [
+  'fundamentals',
+  'technical_depth',
+  'project_experience',
+  'logical_thinking',
+  'communication',
+  'job_fit',
+] as const
+
+export const DIMENSION_LABELS: Record<string, string> = {
+  fundamentals: '基础知识',
+  technical_depth: '技术深度',
+  project_experience: '项目经验',
+  logical_thinking: '逻辑思维',
+  communication: '表达沟通',
+  job_fit: '岗位匹配',
+}
+
+// ---- 面试（M2）----
+// 逐字段对齐后端 app/schemas/interview.py / interview_event.py / interview_message.py（唯一真源）
+
+export type InterviewStyle = 'friendly' | 'stress' | 'deep'
+export type InterviewDifficulty = 'easy' | 'medium' | 'hard'
+
+export interface InterviewConfig {
+  position: string // 1~100 字，必填
+  difficulty: InterviewDifficulty // 默认 medium
+  question_count: number // 3~15，默认 8
+  style: InterviewStyle // 默认 friendly
+}
+
+export interface StartInterviewPayload {
+  resume_id: number
+  config: InterviewConfig
+}
+
+export interface QuestionItem {
+  question_index: number
+  round: number
+  category: string
+  content: string
+  reference_points: string[]
+  difficulty: string
+}
+
+export interface StartInterviewResponse {
+  interview_id: number
+  total_questions: number
+  first_question: QuestionItem
+  estimated_minutes: number
+}
+
+// ---- SSE 五类事件（对齐 app/schemas/interview_event.py，红线 7 禁止扩充）----
+export interface MetaEvent {
+  type: 'meta'
+  interview_id: number
+  question_index: number
+  round: number
+}
+
+export interface ChunkEvent {
+  type: 'chunk'
+  content: string
+}
+
+export interface ScoreEvent {
+  type: 'score'
+  score: number
+  dimensions: Record<string, number>
+  feedback: string
+  follow_up_suggestion: boolean
+}
+
+export interface NextEvent {
+  type: 'next'
+  next_question: string | null
+  next_question_index: number | null
+  round: number | null
+}
+
+export type ErrorCode = 'AI_TIMEOUT' | 'AI_OVERLOAD' | 'INTERVIEW_DONE' | 'INVALID_STATE'
+
+export interface ErrorEvent {
+  type: 'error'
+  code: ErrorCode
+  message: string
+}
+
+export type InterviewSSEEvent = MetaEvent | ChunkEvent | ScoreEvent | NextEvent | ErrorEvent
+
+// ---- 历史消息（对齐 app/schemas/interview_message.py InterviewMessageOut）----
+// 注意：后端 role 为 candidate/interviewer，事件语义由 event_type（answer/score/next）承载，
+// 与计划书手稿中的 role 枚举不同——以前端唯一真源（后端 schema）为准。
+export interface InterviewMessage {
+  id: number
+  question_index: number
+  round: number
+  role: 'candidate' | 'interviewer'
+  content: string | null
+  event_type: string
+  payload_json: Record<string, unknown> | null
+  created_at: string | null
+}
+
+// ---- 渲染用气泡 ----
+export interface ChatBubble {
+  id: number
+  role: 'interviewer' | 'user'
+  content: string
+  score?: ScoreEvent | null
+}
+
+export type InterviewStatus = 'idle' | 'asking' | 'streaming' | 'finished' | 'error'
+
+// ---- 报告等级档位（对齐后端 app/schemas/report.py 阈值，前端仅展示兜底）----
+export const GRADE_LABELS = ['优秀', '良好', '合格', '待提升'] as const
+export type GradeLabel = (typeof GRADE_LABELS)[number]
+
+/** 总分 → 等级（阈值与后端一致：优秀≥9 / 良好≥8 / 合格≥7 / 待提升<7）。 */
+export function gradeOf(score: number): GradeLabel {
+  if (score >= 9) return '优秀'
+  if (score >= 8) return '良好'
+  if (score >= 7) return '合格'
+  return '待提升'
+}
+
