@@ -79,17 +79,6 @@ describe('ReportDetailView', () => {
     wrapper.unmount()
   })
 
-  it('shows PDF export failure message when present', async () => {
-    mocks.getReport.mockResolvedValue(
-      makeReport({ status: 'completed', pdf_ready: false, pdf_error_message: 'libpango 缺失' }),
-    )
-    const wrapper = mount(Detail, { global: { plugins: [ElementPlus] } })
-    await flushPromises()
-    expect(wrapper.text()).toContain('PDF 导出失败')
-    expect(wrapper.text()).toContain('libpango 缺失')
-    wrapper.unmount()
-  })
-
   it('exports and downloads the PDF on button click', async () => {
     mocks.getReport.mockResolvedValue(makeReport({ status: 'completed', pdf_ready: true }))
     mocks.exportReportPdf.mockResolvedValue({ report_id: 1, status: 'processing' })

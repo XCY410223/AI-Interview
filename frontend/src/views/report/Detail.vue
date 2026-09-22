@@ -160,15 +160,6 @@ async function exportPdf() {
         <p v-else class="report-text">—</p>
       </ReportSectionCard>
 
-      <el-alert
-        v-if="data.pdf_error_message"
-        type="warning"
-        :closable="false"
-        show-icon
-        :title="`PDF 导出失败：${data.pdf_error_message}`"
-        class="report-pdf-error"
-      />
-
       <div class="report-actions">
         <el-button type="primary" :loading="exporting" @click="exportPdf">导出 PDF</el-button>
         <el-button @click="router.back()">返回</el-button>
@@ -215,9 +206,6 @@ async function exportPdf() {
 .report-actions {
   display: flex;
   gap: 0.75rem;
-  margin-top: 1.5rem;
-}
-.report-pdf-error {
   margin-top: 1.5rem;
 }
 .question-item {

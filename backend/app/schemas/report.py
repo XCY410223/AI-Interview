@@ -158,7 +158,6 @@ class ReportDetail(BaseModel):
     question_scores: list[QuestionScore] = Field(default_factory=list)
     answer_quality_avg: float | None = None
     pdf_ready: bool = False
-    pdf_error_message: str | None = None
     error_message: str | None = None
     generated_at: str | None = None
 
