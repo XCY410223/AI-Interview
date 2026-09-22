@@ -27,6 +27,24 @@ const router = createRouter({
       meta: { requiresAuth: true },
     },
     {
+      path: '/interview/setup',
+      name: 'interview-setup',
+      component: () => import('@/views/interview/Setup.vue'),
+      meta: { requiresAuth: true },
+    },
+    {
+      path: '/interview/:id',
+      name: 'interview-chat',
+      component: () => import('@/views/interview/Chat.vue'),
+      meta: { requiresAuth: true },
+    },
+    {
+      path: '/report',
+      name: 'report-list',
+      component: () => import('@/views/report/List.vue'),
+      meta: { requiresAuth: true },
+    },
+    {
       path: '/report/:id',
       name: 'report-detail',
       component: () => import('@/views/report/Detail.vue'),
