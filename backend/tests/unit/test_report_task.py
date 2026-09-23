@@ -107,10 +107,27 @@ def test_export_pdf_renders_and_uploads(monkeypatch):
     report = make_report(report_id=1, status=REPORT_STATUS_COMPLETED, payload_json=_payload())
     storage = FakeStorage()
     monkeypatch.setattr("app.tasks.report._render_pdf", lambda html: b"%PDF-fake")
-    result = run(_run_export_pdf(1, session_factory=_session_factory(report), storage=storage))
+    result = run(_run_export_pdf(
+        1, session_factory=_session_factory(report), storage=storage,
+        redis_factory=lambda: FakeRedis(),
+    ))
     assert result["status"] == "completed"
     assert report.pdf_object_key == "reports/1.pdf"
     assert storage.objects["reports/1.pdf"] == b"%PDF-fake"
+
+
+def test_export_pdf_invalidates_payload_cache(monkeypatch):
+    report = make_report(report_id=1, status=REPORT_STATUS_COMPLETED, payload_json=_payload())
+    storage = FakeStorage()
+    redis = FakeRedis()
+    redis._data["report:payload:1:1"] = '{"pdf_ready": false}'  # 预置报告生成时的旧缓存
+    monkeypatch.setattr("app.tasks.report._render_pdf", lambda html: b"%PDF-fake")
+    result = run(_run_export_pdf(
+        1, session_factory=_session_factory(report), storage=storage,
+        redis_factory=lambda: redis,
+    ))
+    assert result["status"] == "completed"
+    assert "report:payload:1:1" not in redis._data  # PDF 落库后旧缓存已被失效
 
 
 def test_export_pdf_not_ready(monkeypatch):
