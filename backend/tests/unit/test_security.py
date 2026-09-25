@@ -59,8 +59,11 @@ def test_decode_wrong_type_rejected():
 
 def test_decode_tampered_token_rejected():
     token = create_access_token(1)
+    # 篡改中间字符（末位 base64url 可能含未用位，篡改末位有歧义会偶发通过，故取中点）
+    mid = len(token) // 2
+    tampered = token[:mid] + ("a" if token[mid] != "a" else "b") + token[mid + 1:]
     with pytest.raises(pyjwt.PyJWTError):
-        decode_token(token[:-1] + ("a" if token[-1] != "a" else "b"))
+        decode_token(tampered, expected_type="access")
 
 
 def test_refresh_token_carries_jti():
