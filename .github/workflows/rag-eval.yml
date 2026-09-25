@@ -1,0 +1,38 @@
+name: M4 RAG Ragas Evaluation
+
+# 手动 / label 触发（评估产生 LLM 费用，禁止每 PR 自动跑，规范 §9.7 / M4 计划 §四 PR-R6）
+on:
+  workflow_dispatch:
+  pull_request:
+    types: [labeled]
+
+jobs:
+  rag-eval:
+    if: |
+      github.event_name == 'workflow_dispatch' ||
+      (github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'rag-eval'))
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      # ragas + langchain 评估依赖仅 dev 安装（红线 10：不进生产镜像）
+      - name: Install dependencies
+        run: pip install -r requirements-dev.txt
+      - name: Run Ragas regression
+        env:
+          LLM_API_KEY: ${{ secrets.LLM_API_KEY }}
+          EMBEDDING_BASE_URL: ${{ secrets.EMBEDDING_BASE_URL }}
+          EMBEDDING_API_KEY: ${{ secrets.EMBEDDING_API_KEY }}
+        run: |
+          python eval/scripts/run_ragas_regression.py \
+            eval/datasets/rag_golden_v1.jsonl \
+            artifacts
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ragas-regression-report
+          path: backend/artifacts/ragas_regression_report.json
