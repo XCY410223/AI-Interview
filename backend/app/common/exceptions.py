@@ -40,6 +40,14 @@ class AIOverloadError(AppError):
     http_status = 503
 
 
+class AIRateLimited(AppError):
+    """AI 调用超出每小时限流（复用 AI_RATE_LIMIT_PER_HOUR，规范 §9.1/§11.4）。"""
+
+    code = "AI_RATE_LIMITED"
+    message = "AI 调用过于频繁，请稍后再试"
+    http_status = 429
+
+
 # ---- AUTH（规范 §3.3/§6.3）----
 class AuthError(AppError):
     """账户模块异常基类（不直接抛出）。"""
@@ -157,3 +165,50 @@ class InterviewNotFinished(ReportError):
 
     code = "INTERVIEW_NOT_FINISHED"
     http_status = 409
+
+
+# ---- QUESTION_BANK（M4：JD 解析 / 真题 RAG / 题库模板）----
+class QuestionBankError(AppError):
+    """题库模块异常基类（不直接抛出）。"""
+
+
+class QuestionBankParseError(QuestionBankError):
+    """JD 解析失败（LLM 不可用 / 返回非法 JSON / Pydantic 校验失败），提示用户重贴。"""
+
+    code = "QUESTION_BANK_JD_PARSE_FAILED"
+    message = "JD 解析失败，请重新粘贴完整的岗位描述"
+    http_status = 422
+
+
+class QuestionBankNotFound(QuestionBankError):
+    code = "QUESTION_BANK_NOT_FOUND"
+    http_status = 404
+
+
+class QuestionBankForbidden(QuestionBankError):
+    code = "QUESTION_BANK_FORBIDDEN"
+    http_status = 403
+
+
+class QuestionBankInvalidSource(QuestionBankError):
+    """真题溯源 source_url 仅接受公开 http(s) URL（§9.6 禁令）。"""
+
+    code = "QUESTION_BANK_INVALID_SOURCE"
+    message = "溯源链接仅支持公开 http/https URL"
+    http_status = 400
+
+
+# ---- PRACTICE（M4：弱项专项练习）----
+class PracticeNotFound(AppError):
+    code = "PRACTICE_NOT_FOUND"
+    http_status = 404
+
+
+# ---- WAITING_LIST（M4：增长机制）----
+class WaitingListError(AppError):
+    """Waiting List 模块异常基类（不直接抛出）。"""
+
+
+class WaitingListRateLimited(WaitingListError):
+    code = "WAITING_LIST_RATE_LIMITED"
+    http_status = 429

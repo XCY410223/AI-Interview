@@ -10,10 +10,12 @@ from collections.abc import AsyncIterator
 from dataclasses import dataclass
 from datetime import datetime, timezone
 
-from sqlalchemy import select
+from redis.asyncio import Redis
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.common.exceptions import InterviewForbidden, InterviewInvalidState, InterviewNotFound
+from app.common.pagination import parse_pagination
 from app.core.llm.client import LLMError
 from app.models.interview import (
     INTERVIEW_STATUS_COMPLETED,
@@ -24,13 +26,23 @@ from app.models.interview import (
 from app.models.interview_message import ROLE_CANDIDATE, ROLE_INTERVIEWER, InterviewMessage
 from app.models.resume import Resume
 from app.prompts.report import CURRENT_VERSION as REPORT_PROMPT_VERSION
-from app.schemas.interview import InterviewConfig, QuestionItem, StartInterviewResponse
+from app.schemas.interview import (
+    InterviewConfig,
+    InterviewListItem,
+    InterviewReplay,
+    QuestionItem,
+    ReEvaluateResponse,
+    StartInterviewResponse,
+)
 from app.schemas.interview_event import SSEEvent
 from app.schemas.interview_message import InterviewMessageOut
+from app.schemas.question_bank import QuestionBankSearchItem
 from app.services.interview.ai_service import InterviewAIService
 from app.services.interview.sse_emitter import SSEEmitter
 from app.services.interview.state_machine import NextAction, decide_next
 from app.services.interview.style_resolver import resolve_style
+from app.services.question_bank import retrieval
+from app.services.question_bank.template_service import TemplateService
 from app.services.report.service import ReportService
 
 logger = logging.getLogger(__name__)
@@ -117,6 +129,7 @@ class InterviewService:
         user_id: int,
         resume_id: int,
         config: InterviewConfig,
+        redis: Redis | None = None,
     ) -> StartInterviewResponse:
         resume = await db.get(Resume, resume_id)
         if resume is not None and resume.deleted_at is None:
@@ -126,11 +139,42 @@ class InterviewService:
         else:
             summary = ""  # 简历缺失/软删：兜底通用题（QG-02）
 
+        # M4 R5：有 company → 检索真题 → 改写融合出题；零命中/检索失败静默回退普通出题
+        real_questions: list[QuestionBankSearchItem] | None = None
+        if config.company:
+            try:
+                found = await retrieval.search(
+                    db,
+                    company=config.company,
+                    position=config.position,
+                    difficulty=config.difficulty,
+                    redis=redis,
+                )
+                real_questions = found or None
+            except Exception as exc:  # 检索/embedding 失败不影响出题主流程（§9.6 零命中回退）
+                logger.warning("真题检索失败，静默回退普通出题 company=%s: %s", config.company, exc)
+                real_questions = None
+
+        # M4 R7-a：use_templates → 引用题库模板（usage_count 计数）
+        templates: list[str] | None = None
+        if config.use_templates:
+            try:
+                templates = await TemplateService.list_for_generation(
+                    db, position=config.position, difficulty=config.difficulty
+                )
+                templates = templates or None
+            except Exception as exc:  # 模板引用失败不影响出题主流程
+                logger.warning("题库模板引用失败，忽略 position=%s: %s", config.position, exc)
+                templates = None
+
         questions = await ai_service.generate_questions(
             position=config.position,
             difficulty=config.difficulty,
             resume_summary=summary,
             question_count=config.question_count,
+            capabilities=config.capabilities,
+            real_questions=real_questions,
+            templates=templates,
         )
         interview = Interview(
             user_id=user_id,
@@ -365,6 +409,111 @@ class InterviewService:
         return [InterviewMessageOut.model_validate(m) for m in rows]
 
     # ------------------------------------------------------------------
+    # 历史回放（M4-PR7-b）：列表 / 详情聚合 / 重评（零迁移，复用 messages 表）
+    # ------------------------------------------------------------------
+    @staticmethod
+    async def list(
+        db: AsyncSession, *, user_id: int, page: int = 1, page_size: int = 20
+    ) -> tuple[int, list[Interview]]:
+        page, page_size = parse_pagination(page, page_size)
+        cond = (Interview.user_id == user_id, Interview.deleted_at.is_(None))
+        total = (await db.execute(select(func.count()).select_from(Interview).where(*cond))).scalar_one()
+        stmt = (
+            select(Interview)
+            .where(*cond)
+            .order_by(Interview.id.desc())
+            .offset((page - 1) * page_size)
+            .limit(page_size)
+        )
+        items = list((await db.execute(stmt)).scalars().all())
+        return int(total), items
+
+    @staticmethod
+    def build_list_item(interview: Interview) -> InterviewListItem:
+        return InterviewListItem(
+            interview_id=interview.id,
+            position=interview.position,
+            difficulty=interview.difficulty,
+            style=interview.style,
+            status=interview.status,
+            question_count=interview.question_count,
+            created_at=interview.created_at.isoformat() if getattr(interview, "created_at", None) else None,
+            completed_at=interview.completed_at.isoformat() if interview.completed_at else None,
+        )
+
+    @staticmethod
+    async def get_replay(
+        db: AsyncSession, *, user_id: int, interview_id: int
+    ) -> InterviewReplay:
+        """回放聚合：题目快照 + 逐条消息 + 报告摘要（只读，§11.3 归属校验）。"""
+        interview = await db.get(Interview, interview_id)
+        if interview is None or interview.deleted_at is not None:
+            raise InterviewNotFound()
+        if interview.user_id != user_id:
+            raise InterviewForbidden()
+        questions: list[QuestionItem] = []
+        for i in range(len(interview.questions_json or [])):
+            q = _get_question(interview, i)
+            if q is not None:
+                questions.append(q)
+        messages = await InterviewService.get_messages(db, user_id=user_id, interview_id=interview_id)
+        report_summary = None
+        report = await ReportService.get_by_interview(db, user_id=user_id, interview_id=interview_id)
+        if report is not None:
+            payload = report.payload_json if isinstance(report.payload_json, dict) else {}
+            report_summary = payload.get("summary")
+        return InterviewReplay(
+            interview_id=interview.id,
+            position=interview.position,
+            difficulty=interview.difficulty,
+            style=interview.style,
+            status=interview.status,
+            question_count=interview.question_count,
+            questions=questions,
+            messages=[m.model_dump() for m in messages],
+            report_summary=report_summary,
+            created_at=interview.created_at.isoformat() if getattr(interview, "created_at", None) else None,
+            completed_at=interview.completed_at.isoformat() if interview.completed_at else None,
+        )
+
+    @staticmethod
+    async def re_evaluate(
+        db: AsyncSession, *, user_id: int, interview_id: int, question_index: int
+    ) -> ReEvaluateResponse:
+        """重评（独立计费）：对某题作答重新评分，新 score 追加 message，不改原分不改报告。"""
+        interview = await db.get(Interview, interview_id)
+        if interview is None or interview.deleted_at is not None:
+            raise InterviewNotFound()
+        if interview.user_id != user_id:
+            raise InterviewForbidden()
+        question = _get_question(interview, question_index)
+        if question is None:
+            raise InterviewInvalidState("当前题目不存在")
+        answer, round_ = await _latest_answer(db, interview_id, question_index)
+        if answer is None:
+            raise InterviewInvalidState("该题暂无作答记录")
+
+        score_data = await ai_service.evaluate_score(question=question, answer=answer)
+        db.add(
+            InterviewMessage(
+                interview_id=interview_id,
+                question_index=question_index,
+                round=round_,
+                role=ROLE_INTERVIEWER,
+                content=score_data.feedback,
+                event_type="score",
+                payload_json={"score": score_data.score, "dimensions": score_data.dimensions, "re_evaluated": True},
+            )
+        )
+        await db.commit()
+        return ReEvaluateResponse(
+            question_index=question_index,
+            score=score_data.score,
+            dimensions=score_data.dimensions,
+            feedback=score_data.feedback,
+        )
+
+    # ------------------------------------------------------------------
     # 报告上下文（M3：跨模块只读出口，§3.1 禁止报告模块直操面试表）
     # ------------------------------------------------------------------
     @staticmethod
@@ -457,6 +606,29 @@ class InterviewService:
             turns=turns,
             answer_quality_avg=answer_quality_avg,
         )
+
+
+async def _latest_answer(
+    db: AsyncSession,
+    interview_id: int,
+    question_index: int,
+) -> tuple[str | None, int]:
+    """取某题最新一轮候选人回答（重评用）；无记录返回 (None, 0)。"""
+    stmt = (
+        select(InterviewMessage)
+        .where(
+            InterviewMessage.interview_id == interview_id,
+            InterviewMessage.question_index == question_index,
+            InterviewMessage.role == ROLE_CANDIDATE,
+            InterviewMessage.deleted_at.is_(None),
+        )
+        .order_by(InterviewMessage.round.desc(), InterviewMessage.id.desc())
+        .limit(1)
+    )
+    rows = list((await db.execute(stmt)).scalars().all())
+    if not rows:
+        return None, 0
+    return rows[0].content, rows[0].round
 
 
 async def _answer_history(
