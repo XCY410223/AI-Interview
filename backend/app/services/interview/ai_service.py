@@ -14,8 +14,11 @@ from dataclasses import dataclass
 from app.core.llm.client import LLMClient, LLMError, llm_client
 from app.prompts.interview.answer_evaluation import EVALUATION_FEEDBACK_PROMPT, EVALUATION_SCORE_PROMPT
 from app.prompts.interview.follow_up_decision import FOLLOW_UP_DECISION_PROMPT
-from app.prompts.interview.question_generation import QUESTION_GENERATION_PROMPT
+from app.prompts.interview.question_generation import build_question_generation_prompt
+from app.prompts.practice.v1 import build_practice_prompt
+from app.prompts.question_bank.v1 import build_rewrite_prompt
 from app.schemas.interview import QuestionItem
+from app.schemas.question_bank import JDCapability, QuestionBankSearchItem
 from app.services.interview.style_resolver import StylePrompts
 
 logger = logging.getLogger(__name__)
@@ -76,13 +79,48 @@ class InterviewAIService:
         difficulty: str,
         resume_summary: str,
         question_count: int,
+        capabilities: list[JDCapability] | None = None,
+        real_questions: list[QuestionBankSearchItem] | None = None,
+        templates: list[str] | None = None,
     ) -> list[QuestionItem]:
         summary = resume_summary.strip() or "（无简历信息，出通用题）"
-        system = QUESTION_GENERATION_PROMPT.format(
+        if real_questions:
+            return await self._generate_with_real(
+                position=position,
+                difficulty=difficulty,
+                summary=summary,
+                question_count=question_count,
+                capabilities=capabilities,
+                templates=templates,
+                real_questions=real_questions,
+            )
+        return await self._generate_base(
+            position=position,
+            difficulty=difficulty,
+            summary=summary,
+            question_count=question_count,
+            capabilities=capabilities,
+            templates=templates,
+        )
+
+    async def _generate_base(
+        self,
+        *,
+        position: str,
+        difficulty: str,
+        summary: str,
+        question_count: int,
+        capabilities: list[JDCapability] | None = None,
+        templates: list[str] | None = None,
+    ) -> list[QuestionItem]:
+        """v2 出题（可含 JD 能力项/题库模板注入）；无真题时的默认路径。"""
+        system = build_question_generation_prompt(
             position=position,
             difficulty=difficulty,
             question_count=question_count,
             resume_summary=summary,
+            capabilities=capabilities,
+            templates=templates,
         )
         messages = [{"role": "system", "content": system}, {"role": "user", "content": summary}]
         for attempt in range(_PARSE_RETRIES):
@@ -96,6 +134,142 @@ class InterviewAIService:
                 logger.error("出题两次失败，走兜底题: %s", exc)
                 return self._fallback_questions(position, question_count)
         return self._fallback_questions(position, question_count)  # pragma: no cover
+
+    async def _generate_with_real(
+        self,
+        *,
+        position: str,
+        difficulty: str,
+        summary: str,
+        question_count: int,
+        capabilities: list[JDCapability] | None,
+        templates: list[str] | None,
+        real_questions: list[QuestionBankSearchItem],
+    ) -> list[QuestionItem]:
+        """真题改写融合：先改写部分真题为题，剩余题量走 v2 出题补足。"""
+        real_count = min(len(real_questions), question_count)
+        real_items = await self.rewrite_real_questions(
+            chunks=real_questions[:real_count],
+            position=position,
+            difficulty=difficulty,
+            resume_summary=summary,
+            count=real_count,
+        )
+        remaining = question_count - len(real_items)
+        if remaining <= 0:
+            return self._reindex(real_items[:question_count])
+        base_items = await self._generate_base(
+            position=position,
+            difficulty=difficulty,
+            summary=summary,
+            question_count=remaining,
+            capabilities=capabilities,
+            templates=templates,
+        )
+        return self._reindex((real_items + base_items)[:question_count])
+
+    async def rewrite_real_questions(
+        self,
+        *,
+        chunks: list[QuestionBankSearchItem],
+        position: str,
+        difficulty: str,
+        resume_summary: str,
+        count: int,
+    ) -> list[QuestionItem]:
+        """真题改写（question_bank/v1 prompt）：真题原文 → 面试题，带 source 来源标注。"""
+        summary = resume_summary.strip() or "（无简历信息，出通用题）"
+        system = build_rewrite_prompt(
+            position=position,
+            difficulty=difficulty,
+            resume_summary=summary,
+            count=count,
+            chunks=chunks,
+        )
+        from app.prompts.question_bank.v1 import build_real_questions_block
+
+        messages = [
+            {"role": "system", "content": system},
+            {"role": "user", "content": build_real_questions_block(chunks)},
+        ]
+        for attempt in range(_PARSE_RETRIES):
+            try:
+                result = await self._client.chat(messages, json_mode=True)
+                return self._parse_real_questions(result.data or {}, count)
+            except (LLMError, KeyError, TypeError, ValueError) as exc:
+                if attempt == 0:
+                    logger.warning("真题改写 JSON 解析失败，重试 1 次: %s", exc)
+                    continue
+                logger.error("真题改写两次失败，回退普通出题: %s", exc)
+                return []
+        return []  # pragma: no cover
+
+    @staticmethod
+    def _parse_real_questions(data: dict, count: int) -> list[QuestionItem]:
+        raw = data.get("questions")
+        if not isinstance(raw, list) or not raw:
+            raise ValueError("questions 非数组或为空")
+        items: list[QuestionItem] = []
+        for i, q in enumerate(raw):
+            if not isinstance(q, dict):
+                raise ValueError("question 非对象")
+            items.append(
+                QuestionItem(
+                    question_index=i,
+                    round=0,
+                    category=str(q.get("category", "项目")),
+                    content=str(q.get("content", "")),
+                    reference_points=[str(p) for p in (q.get("reference_points") or [])],
+                    difficulty=str(q.get("difficulty", "medium")),
+                    source=str(q.get("source") or ""),
+                )
+            )
+        return items[:count]
+
+    @staticmethod
+    def _reindex(items: list[QuestionItem]) -> list[QuestionItem]:
+        """合并后重排 question_index（真题题 + 普通题混合）。"""
+        reindexed: list[QuestionItem] = []
+        for i, q in enumerate(items):
+            reindexed.append(
+                QuestionItem(
+                    question_index=i,
+                    round=0,
+                    category=q.category,
+                    content=q.content,
+                    reference_points=q.reference_points,
+                    difficulty=q.difficulty,
+                    source=q.source,
+                )
+            )
+        return reindexed
+
+    # ------------------------------------------------------------------
+    # 弱项专项练习（M4-PR7-c，复用出题通道）
+    # ------------------------------------------------------------------
+    async def generate_practice(
+        self,
+        *,
+        weaknesses: list[str],
+        count: int,
+    ) -> list[QuestionItem]:
+        """基于报告弱项生成针对性练习面试题（practice/v1 prompt）。"""
+        system = build_practice_prompt(weaknesses=weaknesses, count=count)
+        messages = [
+            {"role": "system", "content": system},
+            {"role": "user", "content": "、".join(weaknesses) if weaknesses else "综合能力提升"},
+        ]
+        for attempt in range(_PARSE_RETRIES):
+            try:
+                result = await self._client.chat(messages, json_mode=True)
+                return self._parse_questions(result.data or {}, count)
+            except (LLMError, KeyError, TypeError, ValueError) as exc:
+                if attempt == 0:
+                    logger.warning("练习出题 JSON 解析失败，重试 1 次: %s", exc)
+                    continue
+                logger.error("练习出题两次失败，返回空题包: %s", exc)
+                return []
+        return []  # pragma: no cover
 
     # ------------------------------------------------------------------
     # 评分：评语流（stream → chunk）与评分 JSON（json_object → score）分离

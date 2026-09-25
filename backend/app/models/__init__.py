@@ -2,10 +2,14 @@
 from app.models.base import Base, PKMixin, SoftDeleteMixin, TimestampMixin
 from app.models.interview import Interview
 from app.models.interview_message import InterviewMessage
+from app.models.practice import PracticePack
+from app.models.question import QuestionBankItem
+from app.models.question_template import QuestionTemplate
 from app.models.report import Report
 from app.models.resume import Resume
 from app.models.token import RefreshToken
 from app.models.user import User
+from app.models.waiting_list import WaitingList
 
 __all__ = [
     "Base",
@@ -14,8 +18,12 @@ __all__ = [
     "TimestampMixin",
     "Interview",
     "InterviewMessage",
+    "PracticePack",
+    "QuestionBankItem",
+    "QuestionTemplate",
     "Report",
     "Resume",
     "RefreshToken",
     "User",
+    "WaitingList",
 ]
