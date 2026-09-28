@@ -1,8 +1,12 @@
 import router from '@/router'
 import { useAuthStore } from '@/stores/auth'
 import type {
+  InterviewListItem,
   InterviewMessage,
+  InterviewReplay,
   InterviewSSEEvent,
+  PageResult,
+  ReEvaluateResponse,
   StartInterviewPayload,
   StartInterviewResponse,
 } from '@/types'
@@ -23,6 +27,31 @@ export async function getInterviewMessages(
 ): Promise<{ items: InterviewMessage[] }> {
   const { data } = await client.get<{ items: InterviewMessage[] }>(
     `/interviews/${interviewId}/messages`,
+  )
+  return data
+}
+
+/** 面试列表（分页 + 归属过滤）。 */
+export async function listInterviews(page = 1, pageSize = 20): Promise<PageResult<InterviewListItem>> {
+  const { data } = await client.get<PageResult<InterviewListItem>>('/interviews', {
+    params: { page, page_size: pageSize },
+  })
+  return data
+}
+
+/** 回放详情：题目快照 + 逐条消息 + 报告摘要（只读）。 */
+export async function getInterviewReplay(interviewId: number): Promise<InterviewReplay> {
+  const { data } = await client.get<InterviewReplay>(`/interviews/${interviewId}`)
+  return data
+}
+
+/** 重评某题（独立计费，REST）：不改原分不改报告，结果直接展示。 */
+export async function reEvaluateAnswer(
+  interviewId: number,
+  questionIndex: number,
+): Promise<ReEvaluateResponse> {
+  const { data } = await client.post<ReEvaluateResponse>(
+    `/interviews/${interviewId}/questions/${questionIndex}/re-evaluate`,
   )
   return data
 }

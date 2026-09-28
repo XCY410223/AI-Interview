@@ -17,7 +17,14 @@ vi.mock('@/api/client', () => ({ client: clientMock }))
 vi.mock('@/stores/auth', () => ({ useAuthStore: () => authMock }))
 vi.mock('@/router', () => ({ default: { push: pushMock } }))
 
-import { getInterviewMessages, startInterview, streamAnswer } from '@/api/interview'
+import {
+  getInterviewMessages,
+  getInterviewReplay,
+  listInterviews,
+  reEvaluateAnswer,
+  startInterview,
+  streamAnswer,
+} from '@/api/interview'
 
 const fetchMock = vi.fn()
 
@@ -142,5 +149,30 @@ describe('interview api', () => {
     await streamAnswer(9, { content: 'a', round: 0 }, () => {}, controller.signal)
     const [, init] = fetchMock.mock.calls[0] as [string, RequestInit]
     expect(init.signal).toBe(controller.signal)
+  })
+})
+
+describe('interview api (M4 replay/list)', () => {
+  it('listInterviews passes pagination params', async () => {
+    clientMock.get.mockResolvedValue({ data: { total: 0, items: [] } })
+    await listInterviews(2, 10)
+    expect(clientMock.get).toHaveBeenCalledWith('/interviews', { params: { page: 2, page_size: 10 } })
+  })
+
+  it('getInterviewReplay fetches by id', async () => {
+    clientMock.get.mockResolvedValue({
+      data: { interview_id: 1, position: '后端', difficulty: 'medium', style: 'friendly', status: 'completed', question_count: 3, questions: [], messages: [], report_summary: null },
+    })
+    const result = await getInterviewReplay(1)
+    expect(clientMock.get).toHaveBeenCalledWith('/interviews/1')
+    expect(result.interview_id).toBe(1)
+  })
+
+  it('reEvaluateAnswer posts to question re-evaluate path', async () => {
+    clientMock.post.mockResolvedValue({
+      data: { question_index: 0, score: 8.5, dimensions: { fundamentals: 8.5 }, feedback: '不错' },
+    })
+    await reEvaluateAnswer(9, 0)
+    expect(clientMock.post).toHaveBeenCalledWith('/interviews/9/questions/0/re-evaluate')
   })
 })

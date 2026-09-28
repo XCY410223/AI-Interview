@@ -160,6 +160,10 @@ export interface InterviewConfig {
   difficulty: InterviewDifficulty // 默认 medium
   question_count: number // 3~15，默认 8
   style: InterviewStyle // 默认 friendly
+  company?: string | null // M4 R5：真题 RAG 检索公司
+  jd_text?: string | null // M4 R2：JD 原文（入 config_json）
+  capabilities?: JDCapability[] | null // M4 R2：JD 能力项（可选注入出题）
+  use_templates?: boolean // M4 R7-a：是否引用题库模板出题
 }
 
 export interface StartInterviewPayload {
@@ -174,6 +178,7 @@ export interface QuestionItem {
   content: string
   reference_points: string[]
   difficulty: string
+  source?: string | null // M4 R5：真题溯源回显（{company}·{source_url}）
 }
 
 export interface StartInterviewResponse {
@@ -255,5 +260,119 @@ export function gradeOf(score: number): GradeLabel {
   if (score >= 8) return '良好'
   if (score >= 7) return '合格'
   return '待提升'
+}
+
+// ---- 题库（M4，逐字段对齐 app/schemas/question_bank.py）----
+export type CapabilityCategory = 'hard_skill' | 'soft_skill' | 'domain' | 'experience'
+export type CapabilityImportance = 'must' | 'nice_to_have'
+
+export interface JDCapability {
+  name: string
+  category: CapabilityCategory
+  keywords: string[]
+  importance: CapabilityImportance
+}
+
+export interface JDParseResponse {
+  position_guess: string
+  capabilities: JDCapability[]
+  parsed_at: string
+}
+
+export interface QuestionBankIngestPayload {
+  company: string
+  position: string
+  difficulty: InterviewDifficulty
+  content: string
+  source_url?: string | null
+}
+
+export interface IngestResponse {
+  item_id: number
+  status: string
+  task_id?: string | null
+}
+
+export interface QuestionBankSearchItem {
+  id: number
+  company: string
+  position: string
+  difficulty: string
+  content: string
+  source_url?: string | null
+}
+
+export interface QuestionBankSearchResponse {
+  items: QuestionBankSearchItem[]
+}
+
+export interface QuestionTemplate {
+  id: number
+  position: string
+  difficulty: string
+  category: string
+  content: string
+  reference_points: string[]
+  tags: string[]
+  usage_count: number
+  created_at?: string | null
+}
+
+export interface QuestionTemplateCreatePayload {
+  position: string
+  difficulty: InterviewDifficulty
+  category: string
+  content: string
+  reference_points: string[]
+  tags: string[]
+}
+
+export type QuestionTemplateUpdatePayload = Partial<QuestionTemplateCreatePayload>
+
+// ---- 历史回放（M4，对齐 app/schemas/interview.py）----
+export interface InterviewListItem {
+  interview_id: number
+  position: string
+  difficulty: string
+  style: string
+  status: string
+  question_count: number
+  created_at?: string | null
+  completed_at?: string | null
+}
+
+export interface ReEvaluateResponse {
+  question_index: number
+  score: number
+  dimensions: Record<string, number>
+  feedback: string
+}
+
+export interface InterviewReplay {
+  interview_id: number
+  position: string
+  difficulty: string
+  style: string
+  status: string
+  question_count: number
+  questions: QuestionItem[]
+  messages: InterviewMessage[]
+  report_summary?: string | null
+  created_at?: string | null
+  completed_at?: string | null
+}
+
+// ---- 弱项专项练习（M4，对齐 app/schemas/practice.py）----
+export interface PracticePack {
+  practice_id: number
+  report_id: number
+  count: number
+  questions: QuestionItem[]
+}
+
+// ---- Waiting List（M4，对齐 app/schemas/waiting_list.py）----
+export interface WaitingListSubscribeResponse {
+  email: string
+  already_subscribed: boolean
 }
 
