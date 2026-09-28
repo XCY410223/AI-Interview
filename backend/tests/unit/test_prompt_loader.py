@@ -11,7 +11,7 @@ from app.services.common.prompt_loader import PromptVersionError, load_template,
 
 
 def test_require_version_ok():
-    assert require_version(question_generation) == "1.0"
+    assert require_version(question_generation) == "2.1"  # M4-PR2/R7-a v1→v2.1 升级
 
 
 def test_require_version_missing_raises():
@@ -26,7 +26,7 @@ def test_require_version_empty_raises():
 
 def test_load_template_ok():
     t = load_template(question_generation, "QUESTION_GENERATION_PROMPT")
-    assert t.version == "1.0"
+    assert t.version == "2.1"
     assert "{position}" in t.template
 
 
@@ -36,5 +36,7 @@ def test_load_template_missing_attr_raises():
 
 
 def test_all_interview_prompts_have_version():
-    for mod in (question_generation, answer_evaluation, follow_up_decision, friendly, stress, deep):
+    # question_generation 已升 v2.1（M4-PR2/R7-a），其余面试 prompt 仍为 v1.0
+    for mod in (answer_evaluation, follow_up_decision, friendly, stress, deep):
         assert require_version(mod) == "1.0"
+    assert require_version(question_generation) == "2.1"

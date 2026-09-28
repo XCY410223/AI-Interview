@@ -139,3 +139,87 @@ def test_stream_feedback_falls_back_to_chunking():
     pieces = asyncio.run(collect())
     assert "".join(pieces) == content
     assert len(pieces) > 1
+
+
+# ---- M4 R2：JD 能力项注入（prompt v2）----
+def _cap(**kw):
+    base = {"name": "Kafka 消息可靠性", "category": "hard_skill", "keywords": ["Kafka", "消息队列"], "importance": "must"}
+    base.update(kw)
+    from app.schemas.question_bank import JDCapability
+
+    return JDCapability.model_validate(base)
+
+
+def test_generate_questions_no_capabilities_equivalent_v1():
+    fake = FakeLLM([_result(_questions(3))])
+    svc = InterviewAIService(client=fake)
+    run(svc.generate_questions(position="后端", difficulty="easy", resume_summary="x", question_count=3))
+    system = fake.calls[0]["messages"][0]["content"]
+    assert "无 JD 定制" in system  # 无 JD 时注入段为占位，行为等价 v1
+
+
+def test_generate_questions_injects_capabilities():
+    fake = FakeLLM([_result(_questions(3))])
+    svc = InterviewAIService(client=fake)
+    run(svc.generate_questions(
+        position="后端", difficulty="easy", resume_summary="x", question_count=3,
+        capabilities=[_cap()],
+    ))
+    system = fake.calls[0]["messages"][0]["content"]
+    assert "Kafka 消息可靠性" in system
+    assert "Kafka" in system
+    assert "必备" in system  # must → 必备
+
+
+# ---- M4 R5：真题改写融合 ----
+def _real_questions_data(n=2):
+    return {"questions": [
+        {
+            "category": "项目", "content": f"改写真题{i}", "reference_points": ["a", "b"],
+            "difficulty": "medium", "source": "字节·https://example.com/x",
+        }
+        for i in range(n)
+    ]}
+
+
+def _chunk(content="真题原文片段", source_url="https://example.com/x"):
+    from app.schemas.question_bank import QuestionBankSearchItem
+
+    return QuestionBankSearchItem(id=1, company="字节", position="后端", difficulty="medium",
+                                  content=content, source_url=source_url)
+
+
+def test_rewrite_real_questions_outputs_source():
+    fake = FakeLLM([_result(_real_questions_data(2))])
+    svc = InterviewAIService(client=fake)
+    qs = run(svc.rewrite_real_questions(
+        chunks=[_chunk()], position="后端", difficulty="medium", resume_summary="x", count=2,
+    ))
+    assert len(qs) == 2
+    assert all(q.source == "字节·https://example.com/x" for q in qs)
+
+
+def test_generate_questions_with_real_fuses_and_reindexes():
+    # 2 个真题 chunk → 改写 2 题；剩余 2 题走普通出题 → 共 4 题
+    fake = FakeLLM([_result(_real_questions_data(2)), _result(_questions(2))])
+    svc = InterviewAIService(client=fake)
+    qs = run(svc.generate_questions(
+        position="后端", difficulty="medium", resume_summary="x", question_count=4,
+        real_questions=[_chunk(), _chunk()],
+    ))
+    assert len(qs) == 4
+    assert [q.question_index for q in qs] == [0, 1, 2, 3]  # 重排连续
+    assert qs[0].source == "字节·https://example.com/x"  # 真题题在前，带 source
+    assert qs[2].source is None  # 普通题无 source
+
+
+def test_generate_questions_with_real_rewrite_failure_falls_back():
+    # 改写两次失败 → 返回 [] → 全部走普通出题
+    fake = FakeLLM([LLMError("bad"), LLMError("bad"), _result(_questions(3))])
+    svc = InterviewAIService(client=fake)
+    qs = run(svc.generate_questions(
+        position="后端", difficulty="medium", resume_summary="x", question_count=3,
+        real_questions=[_chunk()],
+    ))
+    assert len(qs) == 3
+    assert all(q.source is None for q in qs)
