@@ -28,7 +28,7 @@ from app.models.report import (
 from app.prompts.report import get_prompt
 from app.schemas.report import ReportPayload
 from app.services.interview.service import InterviewContext, InterviewService
-from app.services.report.cache import release_gen_lock, set_payload
+from app.services.report.cache import invalidate_payload, release_gen_lock, set_payload
 from app.services.report.pdf_template import render_report_html
 from app.services.report.service import ReportService
 
@@ -227,6 +227,7 @@ async def _run_export_pdf(
     task=None,
     session_factory=async_session_factory,
     storage: StorageClient | None = None,
+    redis_factory=build_redis,
 ) -> dict:
     storage = storage or get_storage()
 
@@ -238,6 +239,7 @@ async def _run_export_pdf(
             return {"status": "not_ready", "report_id": report_id}
         if report.pdf_object_key:
             return {"status": "skipped", "report_id": report_id}  # 产物已存在，幂等
+        user_id = report.user_id
         detail = ReportService.build_detail(report)
 
     try:
@@ -258,5 +260,19 @@ async def _run_export_pdf(
         report.pdf_generated_at = datetime.now(timezone.utc)
         await db.commit()
 
+    # 产物落库后失效结果缓存：否则 GET 详情仍命中报告生成时缓存的 pdf_ready=false（TTL 24h）
+    await _invalidate_payload_cache(redis_factory, user_id, report_id)
+
     logger.info("report pdf exported report_id=%s object_key=%s", report_id, object_key)
     return {"status": "completed", "report_id": report_id, "object_key": object_key}
+
+
+async def _invalidate_payload_cache(redis_factory, user_id: int, report_id: int) -> None:
+    """失效报告结果缓存（best-effort，Redis 抖动不应阻塞 PDF 主流程）。"""
+    redis = redis_factory()
+    try:
+        await invalidate_payload(redis, user_id, report_id)
+    except Exception:  # pragma: no cover - Redis 抖动不应阻塞 PDF 主流程
+        logger.warning("报告缓存失效失败 report_id=%s", report_id, exc_info=True)
+    finally:
+        await redis.aclose()
