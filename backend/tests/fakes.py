@@ -257,6 +257,35 @@ def make_report(
     )
 
 
+def make_question_bank_item(
+    *,
+    item_id: int = 1,
+    user_id: int = 1,
+    company: str = "字节",
+    position: str = "后端",
+    difficulty: str = "medium",
+    content: str = "面经原文",
+    source_url: str | None = None,
+    collected_at=None,
+    content_hash: str | None = None,
+    embedding=None,
+    status: str = "pending",
+    retry_count: int = 0,
+    error_message: str | None = None,
+):
+    if content_hash is None:
+        from app.services.question_bank.ingest import content_hash as _ch
+
+        content_hash = _ch(company, position, content)
+    return SimpleNamespace(
+        id=item_id, user_id=user_id, company=company, position=position,
+        difficulty=difficulty, content=content, source_url=source_url,
+        collected_at=collected_at, content_hash=content_hash, embedding=embedding,
+        status=status, retry_count=retry_count, error_message=error_message,
+        created_at=None, updated_at=None, deleted_at=None,
+    )
+
+
 def _to_question_items(raw: list) -> list:
     return [q if isinstance(q, QuestionItem) else QuestionItem.model_validate(q) for q in raw]
 

@@ -53,8 +53,13 @@ class Settings(BaseSettings):
     LLM_TOTAL_TIMEOUT: int = 120
     LLM_MAX_RETRIES: int = 3
 
-    # Embedding（bge-m3，评估与生产同源）
+    # Embedding（bge-m3，评估与生产同源，M4 计划 §四 PR-R3）
     EMBEDDING_MODEL: str = "bge-m3"
+    # OpenAI 兼容 embeddings 端点（自部署 Xinference/TEI 或兼容网关）；涉密钥，交人工配 .env
+    EMBEDDING_BASE_URL: str = ""
+    EMBEDDING_API_KEY: str = ""
+    EMBEDDING_DIM: int = 1024   # bge-m3 维度，入库/检索做维度断言（§十二）
+    EMBEDDING_BATCH_SIZE: int = 32  # 入库批大小（§9.6）
 
     # 限流
     AI_RATE_LIMIT_PER_HOUR: int = 20

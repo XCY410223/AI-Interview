@@ -91,8 +91,14 @@ class LLMClient:
     `client` 参数用于测试注入 fake AsyncOpenAI；不传时按 settings 构建真实客户端。
     """
 
-    def __init__(self, client: AsyncOpenAI | None = None) -> None:
+    def __init__(
+        self,
+        client: AsyncOpenAI | None = None,
+        embedding_client: Any | None = None,
+    ) -> None:
         self._client = client if client is not None else self._build_client()
+        # embedding 走独立端点（EMBEDDING_BASE_URL/API_KEY），与 LLM 分离；测试可注入 fake
+        self._embedding_client = embedding_client if embedding_client is not None else self._build_embedding_client()
 
     def _build_client(self) -> AsyncOpenAI | None:
         if not settings.LLM_API_KEY:
@@ -102,6 +108,17 @@ class LLMClient:
             base_url=settings.LLM_BASE_URL,
             timeout=self._timeout(),
             max_retries=0,  # 重试由本封装统一管理（指数退避 + 仅限可重试错误）
+        )
+
+    def _build_embedding_client(self) -> AsyncOpenAI | None:
+        """构建 OpenAI 兼容 embeddings 客户端（bge-m3）；未配置 BASE_URL 返回 None（快速失败）。"""
+        if not settings.EMBEDDING_BASE_URL:
+            return None
+        return AsyncOpenAI(
+            api_key=settings.EMBEDDING_API_KEY or "not-set",
+            base_url=settings.EMBEDDING_BASE_URL,
+            timeout=self._timeout(),
+            max_retries=0,
         )
 
     @staticmethod
@@ -183,6 +200,42 @@ class LLMClient:
             content = (getattr(delta, "content", None) or "") if delta else ""
             if content:
                 yield content
+
+    async def embed_texts(self, texts: list[str], *, model: str | None = None) -> list[list[float]]:
+        """批量 embedding（OpenAI 兼容 embeddings API，EMBEDDING_MODEL 驱动，红线 6 统一客户端扩展）。
+
+        - 未配置 EMBEDDING_BASE_URL → LLMError（快速失败，§十二）；
+        - 仅可重试错误（429/5xx/网络/超时）指数退避重试；
+        - 返回按输入顺序排列的向量列表（按返回 index 排序，数量不符判失败）。
+        """
+        if not texts:
+            return []
+        client = self._embedding_client
+        if client is None:
+            raise LLMError("embedding 未配置（缺少 EMBEDDING_BASE_URL）")
+        current = model or settings.EMBEDDING_MODEL
+        last_error: BaseException | None = None
+        for attempt in range(settings.LLM_MAX_RETRIES + 1):
+            try:
+                resp = await client.embeddings.create(model=current, input=list(texts))
+                data = sorted((getattr(resp, "data", None) or []), key=lambda d: getattr(d, "index", 0))
+                vectors = [list(getattr(d, "embedding", None) or []) for d in data]
+                if len(vectors) != len(texts) or any(not v for v in vectors):
+                    raise LLMError(f"embedding 返回向量数量不符（{current}）")
+                return vectors
+            except LLMError:
+                raise
+            except Exception as exc:
+                last_error = exc
+                if not _is_retryable(exc) or attempt >= settings.LLM_MAX_RETRIES:
+                    raise LLMError(f"embedding 调用失败（{current}）: {exc}") from exc
+                delay = self._backoff_delay(attempt)
+                logger.warning(
+                    "embedding 调用失败（%s 第 %d 次尝试）: %s；%.2fs 后重试",
+                    current, attempt + 1, exc, delay,
+                )
+                await asyncio.sleep(delay)
+        raise LLMError(f"embedding 调用失败（{current}）: {last_error}") from last_error  # pragma: no cover
 
     async def _call_with_retry(
         self,

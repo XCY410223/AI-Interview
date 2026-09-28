@@ -19,6 +19,8 @@ celery_app = Celery(
     include=[
         "app.tasks.resume_parser",
         "app.tasks.report",
+        "app.tasks.rag",
+        "app.tasks.email",
     ],
 )
 
