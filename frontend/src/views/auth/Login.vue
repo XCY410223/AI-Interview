@@ -7,6 +7,7 @@ import { useRoute, useRouter } from 'vue-router'
 
 import { useAuthStore } from '@/stores/auth'
 import { extractErrorMessage } from '@/utils/error'
+import WaitingListCard from '@/components/WaitingListCard.vue'
 
 const router = useRouter()
 const route = useRoute()
@@ -49,6 +50,8 @@ async function onSubmit() {
         <router-link class="link" to="/register">没有账号？去注册</router-link>
       </el-form>
     </el-card>
+
+    <WaitingListCard class="waiting" />
   </div>
 </template>
 
@@ -59,6 +62,11 @@ async function onSubmit() {
   padding-top: 4rem;
 }
 .auth-card {
+  width: 360px;
+}
+.waiting {
+  position: absolute;
+  bottom: 2rem;
   width: 360px;
 }
 .submit {
