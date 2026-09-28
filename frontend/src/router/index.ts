@@ -50,6 +50,12 @@ const router = createRouter({
       component: () => import('@/views/report/Detail.vue'),
       meta: { requiresAuth: true },
     },
+    {
+      path: '/practice/:id',
+      name: 'practice-pack',
+      component: () => import('@/views/practice/Pack.vue'),
+      meta: { requiresAuth: true },
+    },
   ],
 })
 
