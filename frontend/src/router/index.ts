@@ -50,6 +50,12 @@ const router = createRouter({
       component: () => import('@/views/report/Detail.vue'),
       meta: { requiresAuth: true },
     },
+    {
+      path: '/question-bank/templates',
+      name: 'question-bank-templates',
+      component: () => import('@/views/questionBank/Templates.vue'),
+      meta: { requiresAuth: true },
+    },
   ],
 })
 

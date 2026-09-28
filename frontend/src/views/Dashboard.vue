@@ -60,6 +60,7 @@ function gradeText(row: ReportListItem): string {
       <div>
         <el-button type="primary" @click="router.push('/interview/setup')">开始面试</el-button>
         <el-button type="primary" plain @click="router.push('/resume/upload')">上传简历</el-button>
+        <el-button plain @click="router.push('/question-bank/templates')">题库模板</el-button>
         <el-button @click="auth.logout().then(() => router.push('/login'))">退出登录</el-button>
       </div>
     </div>
