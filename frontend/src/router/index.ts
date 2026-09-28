@@ -50,6 +50,18 @@ const router = createRouter({
       component: () => import('@/views/report/Detail.vue'),
       meta: { requiresAuth: true },
     },
+    {
+      path: '/question-bank/search',
+      name: 'question-bank-search',
+      component: () => import('@/views/questionBank/Search.vue'),
+      meta: { requiresAuth: true },
+    },
+    {
+      path: '/question-bank/ingest',
+      name: 'question-bank-ingest',
+      component: () => import('@/views/questionBank/Ingest.vue'),
+      meta: { requiresAuth: true },
+    },
   ],
 })
 
