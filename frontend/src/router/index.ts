@@ -33,9 +33,21 @@ const router = createRouter({
       meta: { requiresAuth: true },
     },
     {
+      path: '/interview/history',
+      name: 'interview-history',
+      component: () => import('@/views/interview/History.vue'),
+      meta: { requiresAuth: true },
+    },
+    {
       path: '/interview/:id',
       name: 'interview-chat',
       component: () => import('@/views/interview/Chat.vue'),
+      meta: { requiresAuth: true },
+    },
+    {
+      path: '/interview/:id/replay',
+      name: 'interview-replay',
+      component: () => import('@/views/interview/Replay.vue'),
       meta: { requiresAuth: true },
     },
     {
