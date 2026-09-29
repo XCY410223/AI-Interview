@@ -33,9 +33,21 @@ const router = createRouter({
       meta: { requiresAuth: true },
     },
     {
+      path: '/interview/history',
+      name: 'interview-history',
+      component: () => import('@/views/interview/History.vue'),
+      meta: { requiresAuth: true },
+    },
+    {
       path: '/interview/:id',
       name: 'interview-chat',
       component: () => import('@/views/interview/Chat.vue'),
+      meta: { requiresAuth: true },
+    },
+    {
+      path: '/interview/:id/replay',
+      name: 'interview-replay',
+      component: () => import('@/views/interview/Replay.vue'),
       meta: { requiresAuth: true },
     },
     {
@@ -48,6 +60,30 @@ const router = createRouter({
       path: '/report/:id',
       name: 'report-detail',
       component: () => import('@/views/report/Detail.vue'),
+      meta: { requiresAuth: true },
+    },
+    {
+      path: '/question-bank/search',
+      name: 'question-bank-search',
+      component: () => import('@/views/questionBank/Search.vue'),
+      meta: { requiresAuth: true },
+    },
+    {
+      path: '/question-bank/ingest',
+      name: 'question-bank-ingest',
+      component: () => import('@/views/questionBank/Ingest.vue'),
+      meta: { requiresAuth: true },
+    },
+    {
+      path: '/question-bank/templates',
+      name: 'question-bank-templates',
+      component: () => import('@/views/questionBank/Templates.vue'),
+      meta: { requiresAuth: true },
+    },
+    {
+      path: '/practice/:id',
+      name: 'practice-pack',
+      component: () => import('@/views/practice/Pack.vue'),
       meta: { requiresAuth: true },
     },
   ],
