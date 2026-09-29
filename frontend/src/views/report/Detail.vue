@@ -5,6 +5,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 
 import { createReport, downloadReportPdf, exportReportPdf, getReport } from '@/api/report'
+import { createPractice } from '@/api/practice'
 import { usePolling } from '@/composables/usePolling'
 import RadarChart from '@/components/RadarChart.vue'
 import ReportSectionCard from '@/components/ReportSectionCard.vue'
@@ -20,6 +21,8 @@ const reportStore = useReportStore()
 
 const reportId = computed(() => Number(route.params.id))
 const exporting = ref(false)
+const practiceCount = ref(5)
+const generatingPractice = ref(false)
 
 // 报告页用固定 1.5s 轮询（backoff: false），避免退避到 30s 让首屏等太久（M3 计划 §八）
 const { data, start, stop } = usePolling<ReportDetail>(
@@ -84,6 +87,22 @@ async function exportPdf() {
     exporting.value = false
   }
 }
+
+/** 针对报告弱项生成专项练习包（计入 AI 限流）。 */
+async function generatePractice() {
+  if (generatingPractice.value) return
+  generatingPractice.value = true
+  try {
+    const pack = await createPractice(reportId.value, practiceCount.value)
+    router.push(`/practice/${pack.practice_id}`)
+  } catch (e) {
+    ElMessage.error(extractErrorMessage(e))
+  } finally {
+    generatingPractice.value = false
+  }
+}
+
+defineExpose({ generatePractice, practiceCount })
 </script>
 
 <template>
@@ -160,6 +179,21 @@ async function exportPdf() {
         <p v-else class="report-text">—</p>
       </ReportSectionCard>
 
+      <ReportSectionCard title="弱项专项练习">
+        <p class="report-text">针对本报告弱项生成一组专项练习题（1~10 题）。</p>
+        <div class="practice-row">
+          <el-input-number v-model="practiceCount" :min="1" :max="10" />
+          <el-button
+            type="primary"
+            :loading="generatingPractice"
+            :disabled="generatingPractice"
+            @click="generatePractice"
+          >
+            生成练习
+          </el-button>
+        </div>
+      </ReportSectionCard>
+
       <div class="report-actions">
         <el-button type="primary" :loading="exporting" @click="exportPdf">导出 PDF</el-button>
         <el-button @click="router.back()">返回</el-button>
@@ -207,6 +241,12 @@ async function exportPdf() {
   display: flex;
   gap: 0.75rem;
   margin-top: 1.5rem;
+}
+.practice-row {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-top: 0.5rem;
 }
 .question-item {
   padding: 0.5rem 0;

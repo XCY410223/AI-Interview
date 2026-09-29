@@ -1,6 +1,6 @@
 import { flushPromises, mount } from '@vue/test-utils'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import ElementPlus from 'element-plus'
+import ElementPlus, { ElMessage } from 'element-plus'
 
 import type { ReportDetail } from '@/types'
 
@@ -9,8 +9,10 @@ const mocks = vi.hoisted(() => ({
   createReport: vi.fn(),
   exportReportPdf: vi.fn(),
   downloadReportPdf: vi.fn(),
+  createPractice: vi.fn(),
   setCurrent: vi.fn(),
   back: vi.fn(),
+  push: vi.fn(),
 }))
 
 vi.mock('@/api/report', () => ({
@@ -19,12 +21,13 @@ vi.mock('@/api/report', () => ({
   exportReportPdf: mocks.exportReportPdf,
   downloadReportPdf: mocks.downloadReportPdf,
 }))
+vi.mock('@/api/practice', () => ({ createPractice: mocks.createPractice }))
 vi.mock('@/stores/report', () => ({
   useReportStore: () => ({ setCurrent: mocks.setCurrent, clear: vi.fn() }),
 }))
 vi.mock('vue-router', () => ({
   useRoute: () => ({ params: { id: '1' } }),
-  useRouter: () => ({ back: mocks.back }),
+  useRouter: () => ({ back: mocks.back, push: mocks.push }),
 }))
 vi.mock('@/components/RadarChart.vue', () => ({ default: { template: '<div class="radar-stub" />' } }))
 
@@ -111,5 +114,38 @@ describe('ReportDetailView', () => {
       ;(URL as unknown as { revokeObjectURL: typeof originalRevoke }).revokeObjectURL = originalRevoke
       HTMLAnchorElement.prototype.click = originalClick
     }
+  })
+
+  it('generates practice pack and navigates', async () => {
+    mocks.getReport.mockResolvedValue(makeReport({ status: 'completed' }))
+    mocks.createPractice.mockResolvedValue({ practice_id: 7, report_id: 1, count: 5, questions: [] })
+    const wrapper = mount(Detail, { global: { plugins: [ElementPlus] } })
+    await flushPromises()
+
+    const vm = wrapper.vm as unknown as {
+      practiceCount: number
+      generatePractice: () => Promise<void>
+    }
+    vm.practiceCount = 6
+    await vm.generatePractice()
+
+    expect(mocks.createPractice).toHaveBeenCalledWith(1, 6)
+    expect(mocks.push).toHaveBeenCalledWith('/practice/7')
+    wrapper.unmount()
+  })
+
+  it('shows error when practice generation fails (409 REPORT_NOT_READY)', async () => {
+    const err = vi.spyOn(ElMessage, 'error').mockImplementation(() => ({} as never))
+    mocks.getReport.mockResolvedValue(makeReport({ status: 'completed' }))
+    mocks.createPractice.mockRejectedValue(new Error('报告尚未生成完成，暂不可生成练习'))
+    const wrapper = mount(Detail, { global: { plugins: [ElementPlus] } })
+    await flushPromises()
+
+    const vm = wrapper.vm as unknown as { generatePractice: () => Promise<void> }
+    await vm.generatePractice()
+
+    expect(err).toHaveBeenCalledWith('报告尚未生成完成，暂不可生成练习')
+    err.mockRestore()
+    wrapper.unmount()
   })
 })
