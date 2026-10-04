@@ -13,7 +13,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.common.exceptions import QuestionBankInvalidSource
 from app.models.question import QUESTION_BANK_STATUS_PENDING, QuestionBankItem
-from app.services.question_bank.ingest import content_hash
+from app.services.question_bank.ingest import job_content_hash
 
 logger = logging.getLogger(__name__)
 
@@ -49,7 +49,7 @@ class QuestionBankService:
             content=content,
             source_url=source_url or None,
             collected_at=datetime.now(timezone.utc),
-            content_hash=content_hash(company, position, content),
+            content_hash=job_content_hash(company, position, content),
             status=QUESTION_BANK_STATUS_PENDING,
         )
         db.add(item)

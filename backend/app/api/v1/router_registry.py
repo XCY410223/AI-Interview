@@ -4,7 +4,7 @@
 """
 from fastapi import APIRouter
 
-from app.api.v1 import auth, health, interview, practice, question_bank, report, resume, waiting_list
+from app.api.v1 import auth, health, interview, practice, question_bank, report, resume
 
 api_router = APIRouter()
 
@@ -16,4 +16,3 @@ api_router.include_router(interview.router, prefix="/interviews", tags=["面试"
 api_router.include_router(question_bank.router, prefix="/question-bank", tags=["题库"])
 api_router.include_router(report.router, prefix="/reports", tags=["报告"])
 api_router.include_router(practice.router, prefix="/practice", tags=["专项练习"])
-api_router.include_router(waiting_list.router, prefix="/waiting-list", tags=["等候名单"])

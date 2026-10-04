@@ -4,6 +4,10 @@ from __future__ import annotations
 import asyncio
 import json
 
+import pytest
+
+from app.common.exceptions import QuestionBankRetrievalError
+from app.core.llm.client import LLMError
 from app.schemas.question_bank import QuestionBankSearchItem
 from app.services.question_bank.retrieval import (
     build_query_text,
@@ -75,3 +79,26 @@ def test_search_zero_hit_returns_empty():
 
     result = run(search(session, company="字节", position="后端", difficulty="medium", redis=redis, embed_fn=embed))
     assert result == []
+
+
+def test_search_zero_hit_does_not_cache():
+    session = FakeSession().configure(scalars=[])
+    redis = FakeRedis()
+
+    async def embed(texts):
+        return [[0.1] * 1024 for _ in texts]
+
+    result = run(search(session, company="字节", position="后端", difficulty="medium", redis=redis, embed_fn=embed))
+    assert result == []
+    # 空结果不应回填缓存（入库是异步的，避免陈旧空缓存）
+    assert cache_key("字节", "后端", "medium") not in redis._data
+
+
+def test_search_embedding_failure_raises_retrieval_error():
+    session = FakeSession().configure(scalars=[])
+
+    async def embed(texts):
+        raise LLMError("embedding 未配置（缺少 EMBEDDING_BASE_URL）")
+
+    with pytest.raises(QuestionBankRetrievalError):
+        run(search(session, company="字节", position="后端", difficulty="medium", embed_fn=embed))
