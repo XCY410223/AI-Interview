@@ -206,6 +206,14 @@ class QuestionBankInvalidSource(QuestionBankError):
     http_status = 400
 
 
+class QuestionBankRetrievalError(QuestionBankError):
+    """真题检索失败（embedding 未配置或调用失败，§9.6 依赖 EMBEDDING_*）。"""
+
+    code = "QUESTION_BANK_RETRIEVAL_FAILED"
+    message = "真题检索暂不可用（embedding 未配置或调用失败）"
+    http_status = 502
+
+
 # ---- PRACTICE（M4：弱项专项练习）----
 class PracticeNotFound(AppError):
     code = "PRACTICE_NOT_FOUND"
