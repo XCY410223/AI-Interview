@@ -81,6 +81,14 @@ class AuthRateLimited(AuthError):
     http_status = 429
 
 
+class AuthResetTokenInvalid(AuthError):
+    """重置 token 无效/过期/已使用（统一文案，不区分具体原因，防探测 §2.1）。"""
+
+    code = "AUTH_RESET_TOKEN_INVALID"
+    message = "重置链接无效或已过期，请重新获取"
+    http_status = 400
+
+
 # ---- RESUME（规范 §4.5/§11.3）----
 class ResumeError(AppError):
     """简历模块异常基类（不直接抛出）。"""
@@ -202,13 +210,3 @@ class QuestionBankInvalidSource(QuestionBankError):
 class PracticeNotFound(AppError):
     code = "PRACTICE_NOT_FOUND"
     http_status = 404
-
-
-# ---- WAITING_LIST（M4：增长机制）----
-class WaitingListError(AppError):
-    """Waiting List 模块异常基类（不直接抛出）。"""
-
-
-class WaitingListRateLimited(WaitingListError):
-    code = "WAITING_LIST_RATE_LIMITED"
-    http_status = 429

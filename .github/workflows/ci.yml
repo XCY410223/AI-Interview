@@ -31,7 +31,7 @@ jobs:
       - name: mypy
         run: mypy app
 
-  # ---- 阶段 2：test（pytest 全量 + 覆盖率 ≥60%）----
+  # ---- 阶段 2：test（pytest 全量 + 覆盖率 ≥80%）----
   test:
     runs-on: ubuntu-latest
     defaults:
