@@ -1,0 +1,38 @@
+# =============================================================================
+# Mailpit 覆盖层（演示用，收尾计划书 C4）
+#
+# 用法（在 backend/ 目录下）：
+#   docker compose -f docker-compose.yml -f docker-compose.mailpit.yml up -d
+#
+# 作用：在基线（生产形态 gunicorn）上叠加 Mailpit（SMTP 1025 / Web UI 8025），
+#       并把 SMTP_HOST 注入 app / celery，使「忘记密码找回」能看到真实邮件。
+#       不改变 app 镜像与运行形态（区别于 docker-compose.dev.yml 的 --reload/源码挂载）。
+# =============================================================================
+
+services:
+  app:
+    environment:
+      SMTP_HOST: mailpit
+      SMTP_PORT: "1025"
+      SMTP_FROM: "AI-Interview <noreply@example.com>"
+
+  celery-worker:
+    environment:
+      SMTP_HOST: mailpit
+      SMTP_PORT: "1025"
+      SMTP_FROM: "AI-Interview <noreply@example.com>"
+
+  celery-beat:
+    environment:
+      SMTP_HOST: mailpit
+      SMTP_PORT: "1025"
+      SMTP_FROM: "AI-Interview <noreply@example.com>"
+
+  mailpit:
+    image: axllent/mailpit:latest
+    restart: unless-stopped
+    ports:
+      - "1025:1025"   # SMTP
+      - "8025:8025"   # Web UI
+    networks:
+      - backend
