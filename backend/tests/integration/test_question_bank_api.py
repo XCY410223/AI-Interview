@@ -7,7 +7,7 @@ import pytest
 
 from app.api.v1 import deps
 from app.main import app
-from app.schemas.question_bank import JDParseResponse, JDCapability
+from app.schemas.question_bank import JDCapability, JDParseResponse
 from tests.fakes import make_user
 
 

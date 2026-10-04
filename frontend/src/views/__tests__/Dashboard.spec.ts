@@ -5,14 +5,12 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 const mocks = vi.hoisted(() => ({
   listResumes: vi.fn(),
   listReports: vi.fn(),
-  exportWaitingListCsv: vi.fn(),
   push: vi.fn(),
   logout: vi.fn(),
 }))
 
 vi.mock('@/api/resume', () => ({ listResumes: mocks.listResumes }))
 vi.mock('@/api/report', () => ({ listReports: mocks.listReports }))
-vi.mock('@/api/waitingList', () => ({ exportWaitingListCsv: mocks.exportWaitingListCsv }))
 vi.mock('vue-router', () => ({ useRouter: () => ({ push: mocks.push }) }))
 vi.mock('@/stores/auth', () => ({
   useAuthStore: () => ({ user: { email: 'a@b.com' }, logout: mocks.logout }),
@@ -55,35 +53,4 @@ describe('DashboardView', () => {
     wrapper.unmount()
   })
 
-  it('exports waiting list CSV via blob download', async () => {
-    mocks.exportWaitingListCsv.mockResolvedValue(new Blob(['email,created_at\n']))
-
-    const createObjectURL = vi.fn(() => 'blob:mock')
-    const revokeObjectURL = vi.fn()
-    const click = vi.fn()
-    const originalCreate = URL.createObjectURL
-    const originalRevoke = URL.revokeObjectURL
-    const originalClick = HTMLAnchorElement.prototype.click
-    ;(URL as unknown as { createObjectURL: typeof createObjectURL }).createObjectURL = createObjectURL
-    ;(URL as unknown as { revokeObjectURL: typeof revokeObjectURL }).revokeObjectURL = revokeObjectURL
-    HTMLAnchorElement.prototype.click = click
-
-    try {
-      const wrapper = mount(Dashboard, { global: { plugins: [ElementPlus] } })
-      await flushPromises()
-
-      const btn = wrapper.findAll('button').find((b) => b.text().includes('导出 Waiting List'))
-      expect(btn).toBeTruthy()
-      await btn!.trigger('click')
-
-      expect(mocks.exportWaitingListCsv).toHaveBeenCalled()
-      expect(createObjectURL).toHaveBeenCalled()
-      expect(click).toHaveBeenCalled()
-      wrapper.unmount()
-    } finally {
-      ;(URL as unknown as { createObjectURL: typeof originalCreate }).createObjectURL = originalCreate
-      ;(URL as unknown as { revokeObjectURL: typeof originalRevoke }).revokeObjectURL = originalRevoke
-      HTMLAnchorElement.prototype.click = originalClick
-    }
-  })
 })

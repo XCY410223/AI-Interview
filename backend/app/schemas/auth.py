@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 from datetime import datetime
+from typing import Any
 
 from pydantic import BaseModel, EmailStr, Field
 
@@ -51,3 +52,24 @@ class AuthResponse(BaseModel):
 class RefreshResponse(BaseModel):
     access_token: str
     refresh_token: str
+
+
+class ForgotPasswordRequest(BaseModel):
+    email: EmailStr
+
+
+class ResetPasswordRequest(BaseModel):
+    token: str = Field(min_length=20, max_length=128, description="重置 token（一次性）")
+    new_password: str = Field(min_length=8, max_length=128, description="至少 8 位（与注册同规则）")
+
+
+class ResetTokenValidateResponse(BaseModel):
+    valid: bool
+
+
+class AuthMessageResponse(BaseModel):
+    """forgot-password / reset-password 统一成功响应（§3.2）。"""
+
+    code: int = 0
+    message: str
+    data: Any = None

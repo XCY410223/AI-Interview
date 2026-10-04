@@ -11,8 +11,10 @@ from app.core.security import (
     create_access_token,
     create_refresh_token,
     decode_token,
+    generate_reset_token,
     hash_password,
     hash_refresh_token,
+    hash_reset_token,
     verify_password,
 )
 
@@ -76,3 +78,17 @@ def test_refresh_token_carries_jti():
 def test_hash_refresh_token_stable_and_distinct():
     assert hash_refresh_token("abc") == hash_refresh_token("abc")
     assert hash_refresh_token("abc") != hash_refresh_token("abd")
+
+
+def test_generate_reset_token_high_entropy_and_distinct():
+    t1 = generate_reset_token()
+    t2 = generate_reset_token()
+    assert t1 != t2
+    assert len(t1) == 43  # token_urlsafe(32) → 43 字符
+    allowed = set("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-_")
+    assert set(t1) <= allowed
+
+
+def test_hash_reset_token_stable_and_distinct():
+    assert hash_reset_token("abc") == hash_reset_token("abc")
+    assert hash_reset_token("abc") != hash_reset_token("abd")

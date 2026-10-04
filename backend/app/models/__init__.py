@@ -9,7 +9,6 @@ from app.models.report import Report
 from app.models.resume import Resume
 from app.models.token import RefreshToken
 from app.models.user import User
-from app.models.waiting_list import WaitingList
 
 __all__ = [
     "Base",
@@ -25,5 +24,4 @@ __all__ = [
     "Resume",
     "RefreshToken",
     "User",
-    "WaitingList",
 ]

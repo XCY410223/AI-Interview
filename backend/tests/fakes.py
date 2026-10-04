@@ -33,6 +33,9 @@ class FakeRedis:
     async def get(self, key: str) -> str | None:
         return self._data.get(key)
 
+    async def getdel(self, key: str) -> str | None:
+        return self._data.pop(key, None)
+
     async def set(self, key: str, value: str, ex: int | None = None, nx: bool = False) -> bool:
         if nx and key in self._data:
             return False
@@ -47,10 +50,17 @@ class FakeRedis:
 
 
 class FakeResult:
-    def __init__(self, scalar_one_or_none=None, scalar_one=None, scalars: list | None = None):
+    def __init__(
+        self,
+        scalar_one_or_none=None,
+        scalar_one=None,
+        scalars: list | None = None,
+        rowcount: int | None = None,
+    ):
         self._scalar_one_or_none = scalar_one_or_none
         self._scalar_one = scalar_one
         self._scalars = scalars
+        self.rowcount = rowcount
 
     def scalar_one_or_none(self):
         return self._scalar_one_or_none
@@ -82,6 +92,7 @@ class FakeSession:
         self.committed = False
         self._execute_result = FakeResult()
         self._get_map: dict[int, object] = {}
+        self.executed: list = []
 
     def configure(
         self,
@@ -90,8 +101,9 @@ class FakeSession:
         scalar_one=None,
         scalars: list | None = None,
         get_map: dict | None = None,
+        rowcount: int | None = None,
     ) -> "FakeSession":
-        self._execute_result = FakeResult(scalar_one_or_none, scalar_one, scalars)
+        self._execute_result = FakeResult(scalar_one_or_none, scalar_one, scalars, rowcount)
         if get_map is not None:
             self._get_map = get_map
         return self
@@ -125,6 +137,7 @@ class FakeSession:
         return self._get_map.get(pk)
 
     async def execute(self, stmt):
+        self.executed.append(stmt)
         return self._execute_result
 
     async def __aenter__(self) -> "FakeSession":

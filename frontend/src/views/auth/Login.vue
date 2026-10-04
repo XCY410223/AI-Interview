@@ -7,7 +7,6 @@ import { useRoute, useRouter } from 'vue-router'
 
 import { useAuthStore } from '@/stores/auth'
 import { extractErrorMessage } from '@/utils/error'
-import WaitingListCard from '@/components/WaitingListCard.vue'
 
 const router = useRouter()
 const route = useRoute()
@@ -47,11 +46,10 @@ async function onSubmit() {
           <el-input v-model="form.password" type="password" show-password @keyup.enter="onSubmit" />
         </el-form-item>
         <el-button type="primary" class="submit" :loading="loading" @click="onSubmit">登录</el-button>
+        <router-link class="link" to="/forgot-password">忘记密码？</router-link>
         <router-link class="link" to="/register">没有账号？去注册</router-link>
       </el-form>
     </el-card>
-
-    <WaitingListCard class="waiting" />
   </div>
 </template>
 
@@ -62,11 +60,6 @@ async function onSubmit() {
   padding-top: 4rem;
 }
 .auth-card {
-  width: 360px;
-}
-.waiting {
-  position: absolute;
-  bottom: 2rem;
   width: 360px;
 }
 .submit {

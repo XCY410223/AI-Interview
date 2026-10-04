@@ -26,6 +26,25 @@ export interface LoginPayload {
   password: string
 }
 
+export interface ResetTokenValidateResponse {
+  valid: boolean
+}
+
+export interface AuthMessageResponse {
+  code: number
+  message: string
+  data?: unknown
+}
+
+export interface ForgotPasswordPayload {
+  email: string
+}
+
+export interface ResetPasswordPayload {
+  token: string
+  new_password: string
+}
+
 export type ResumeStatus = 'pending' | 'processing' | 'completed' | 'failed'
 
 export interface Resume {
@@ -368,11 +387,5 @@ export interface PracticePack {
   report_id: number
   count: number
   questions: QuestionItem[]
-}
-
-// ---- Waiting List（M4，对齐 app/schemas/waiting_list.py）----
-export interface WaitingListSubscribeResponse {
-  email: string
-  already_subscribed: boolean
 }
 
