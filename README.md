@@ -118,7 +118,7 @@ docker compose up -d --build  # 一条命令起全栈
 
 > 注意：`docker compose down -v` 会清空数据卷，属危险命令（CLAUDE.md 红线），请勿执行。
 
-## 下一步
+## 进度
 
 - ~~M0-2：实现 `docker-compose.yml` + Dockerfile（healthcheck/非 root/多阶段构建）~~ ✅
 - ~~M0-3：`.github/workflows/` 建 CI（quick-check/test/lint-frontend/build，覆盖率 ≥60%）~~ ✅
@@ -126,4 +126,3 @@ docker compose up -d --build  # 一条命令起全栈
 - ~~M1：账户 + 简历（注册/登录/上传/异步解析/结构化展示）~~ ✅（完成报告见桌面 `M1 完成报告.md`）
 - ~~M2 面试引擎 / M3 报告 / M4 题库+回放+练习~~ ✅（见 `docs/M2-完成报告.md`、`M3-完成报告.md`、`M4-完成报告.md`）
 - ~~忘记密码找回（SMTP + Celery 邮件任务 + 前端两页）~~ ✅（见 `docs/忘记密码找回-设计方案.md`）
-- **待办**：迁移 `0009` 人工终审执行；前端 `dist` 构建并挂载 nginx；`EMBEDDING_*` 环境变量配置；上机部署冒烟
