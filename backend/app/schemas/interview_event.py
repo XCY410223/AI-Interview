@@ -1,7 +1,7 @@
 """SSE 五类事件 Pydantic 模型（规范 §8.2 / 红线 7，M2 计划 §二 PR2）。
 
 评分 JSON 以独立 `score` 事件下发；前端只消费事件，不解析 chunk 文本——
-彻底切断旧项目「正则从流式文本抠 JSON」的污染路径。
+彻底切断「正则从流式文本抠 JSON」的污染路径。
 """
 from __future__ import annotations
 

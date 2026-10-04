@@ -25,7 +25,7 @@ Claude 可起草但必须人工终审的环节（不得自行执行）：
 - 基础设施：Docker Compose、MinIO/COS 对象存储
 - AI：统一 LLM 客户端（AsyncOpenAI 兼容封装）；embedding 用 bge-m3；评估 judge 用 DeepSeek + t=0（配置锁死，不得更改）
 
-## 红线（来自旧项目实测教训，违反必须回退）
+## 红线（来自实战教训，违反必须回退）
 
 1. 禁止重复注册路由；新增路由前先 grep 现有路由
 2. 禁止 `.env`、`logs/`、`uploads/`、任何密钥进入 git
