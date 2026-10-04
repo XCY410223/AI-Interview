@@ -126,7 +126,8 @@ async def search(
     )
     items = _to_search_items(rows)
 
-    if redis is not None:
+    # 仅缓存非空结果：入库是异步的，缓存空结果会让「入库后立刻检索」吃到 10min 陈旧空缓存
+    if redis is not None and items:
         await _cache_set(redis, key, items)
     return items
 
