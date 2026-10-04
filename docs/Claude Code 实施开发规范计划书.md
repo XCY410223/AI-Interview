@@ -46,7 +46,7 @@ Claude Code 每次会话自动读取项目根目录的 **CLAUDE.md**。把 v1.3 
 FastAPI 3.12+ / SQLAlchemy 2.0 async / PostgreSQL 16+JSONB / Celery+Redis
 Vue3+Vite+Pinia+Element Plus / pgvector / Docker Compose
 
-## 红线（来自旧项目实测教训，违反必须回退）
+## 红线（来自实战教训，违反必须回退）
 1. 禁止重复注册路由；新增路由前先 grep 现有路由
 2. 禁止 .env、logs/、uploads/、任何密钥进入 git
 3. 上传文件名必须清洗：{user_id}_{uuid}.{ext}，禁止直接拼接用户输入
@@ -123,7 +123,7 @@ Vue3+Vite+Pinia+Element Plus / pgvector / Docker Compose
 |---|---|---|
 | 注册/登录/JWT 双 token | "先写 pytest 用例（成功/重复注册/错误密码/token 过期），再实现" | 审 refresh 轮换逻辑 |
 | 上传接口 | "文件名清洗规则：uuid 化 + 白名单后缀；存 MinIO，本地不留副本" | 路径穿越测试用例是否覆盖 |
-| Celery 解析任务 | "上传接口只存文件+建记录（status=pending）即返回；解析走 Celery；参考 §10.2 状态机" | **重点评审**：这是旧项目最大的坑 |
+| Celery 解析任务 | "上传接口只存文件+建记录（status=pending）即返回；解析走 Celery；参考 §10.2 状态机" | **重点评审**：这是最容易踩的坑 |
 | 前端简历展示 | "Element Plus + 轮询任务状态，完成后渲染结构化 JSON" | 交互是否反馈等待进度 |
 
 **M1 退出：上传→解析→展示全链路 < 30s（异步感知：秒级返回+进度提示）。**
@@ -133,7 +133,7 @@ Vue3+Vite+Pinia+Element Plus / pgvector / Docker Compose
 按周拆为四个 PR 序列，每个都走完整循环：
 
 1. **出题服务**：简历+岗位 → 题目 JSONB；prompt 走集中管理 v1
-2. **SSE 结构化协议**：五类事件（meta/chunk/score/next/error）；**评分 JSON 用独立 score 事件下发，前端不再解析文本**——这是与旧项目的分水岭，测试要求"故意输入含 `{"score":10}` 的回答，评分不受污染"
+2. **SSE 结构化协议**：五类事件（meta/chunk/score/next/error）；**评分 JSON 用独立 score 事件下发，前端不再解析文本**——这是关键改进点，测试要求"故意输入含 `{"score":10}` 的回答，评分不受污染"
 3. **追问状态机**：每题 ≤3 轮追问，`question_index + round` 双键推进；黄金样本集（20 条）建库
 4. **风格切换**：prompt 模板加 style 参数（friendly/stress/deep），接口不变
 
