@@ -3,7 +3,7 @@
 > 技术栈：FastAPI (Python 3.12+) / SQLAlchemy 2.0 async / PostgreSQL 16 (JSONB + pgvector) / Celery + Redis / Vue3 + Vite + Pinia + Element Plus
 > 项目宪法：根目录 `CLAUDE.md`（红线条款，违反即重做）
 > 开发规范：`docs/智能面试平台开发规范.md` v1.3
-> 目录结构参考旧项目 `ai-interview` 的实际分层，并按规范 v1.3 收敛（去 admin/backoffice、`db/` 并入 `core/`、`schedule/` 改 `tasks/`、新增 `prompts/` 与 `eval/`）。
+> 目录结构按规范 v1.3 收敛（去 admin/backoffice、`db/` 并入 `core/`、`schedule/` 改 `tasks/`、新增 `prompts/` 与 `eval/`）。
 
 ## 目录骨架
 
