@@ -97,3 +97,12 @@ def test_rotate_blacklisted_token_401():
     redis._data[f"blacklist:{jti}"] = "1"
     with pytest.raises(AuthTokenRevoked):
         run(TokenService.rotate(db, redis, refresh))
+
+
+def test_revoke_all_for_user_returns_rowcount_and_targets_user():
+    db = FakeSession().configure(rowcount=2)
+    assert run(TokenService.revoke_all_for_user(db, 42)) == 2
+    assert len(db.executed) == 1
+    sql = str(db.executed[0])
+    assert "refresh_tokens" in sql
+    assert "user_id" in sql  # 仅按目标用户过滤

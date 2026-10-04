@@ -7,6 +7,7 @@
 from __future__ import annotations
 
 import hashlib
+import secrets
 import uuid
 from datetime import datetime, timedelta, timezone
 
@@ -74,3 +75,13 @@ def decode_token(token: str, expected_type: str | None = None) -> dict:
 def hash_refresh_token(jti: str) -> str:
     """refresh token 的 DB 存根 hash：sha256(jti + SECRET_KEY)，不存原文。"""
     return hashlib.sha256(f"{jti}{settings.SECRET_KEY}".encode("utf-8")).hexdigest()
+
+
+def generate_reset_token() -> str:
+    """生成 43 字符高熵重置 token（secrets.token_urlsafe(32)），仅存在于邮件链接中。"""
+    return secrets.token_urlsafe(32)
+
+
+def hash_reset_token(token: str) -> str:
+    """重置 token 的 Redis 存根 hash：sha256(token + SECRET_KEY)，与 refresh 存根同款策略。"""
+    return hashlib.sha256(f"{token}{settings.SECRET_KEY}".encode("utf-8")).hexdigest()

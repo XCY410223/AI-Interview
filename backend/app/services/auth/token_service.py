@@ -10,7 +10,7 @@ from datetime import datetime, timedelta, timezone
 
 import jwt as pyjwt
 from redis.asyncio import Redis
-from sqlalchemy import select
+from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.common.exceptions import AuthInvalidCredentials, AuthTokenExpired, AuthTokenRevoked
@@ -120,3 +120,14 @@ class TokenService:
             await db.commit()
         if redis is not None and jti:
             await redis.set(f"blacklist:{jti}", "1", ex=_REFRESH_BLACKLIST_TTL_SECONDS)
+
+    @staticmethod
+    async def revoke_all_for_user(db: AsyncSession, user_id: int) -> int:
+        """撤销指定用户名下全部未撤销的 refresh token（重置密码「全下线」语义，§3.5）。"""
+        result = await db.execute(
+            update(RefreshToken)
+            .where(RefreshToken.user_id == user_id, RefreshToken.revoked.is_(False))
+            .values(revoked=True)
+        )
+        # DML 结果上的 rowcount 位于 CursorResult（asyncpg 可能返回 None），此处 getattr 兜底
+        return int(getattr(result, "rowcount", 0) or 0)

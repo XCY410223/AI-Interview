@@ -6,8 +6,9 @@ from datetime import datetime, timezone
 import pytest
 
 from app.api.v1 import deps
+from app.common.exceptions import QuestionBankRetrievalError
 from app.main import app
-from app.schemas.question_bank import JDParseResponse, JDCapability
+from app.schemas.question_bank import JDCapability, JDParseResponse
 from tests.fakes import make_user
 
 
@@ -136,6 +137,20 @@ def test_search_returns_items(qb_client, monkeypatch):
 def test_search_requires_auth(client):
     resp = client.get("/api/v1/question-bank/search", params={"company": "字节", "position": "后端"})
     assert resp.status_code == 401
+
+
+def test_search_embedding_failure_returns_502(qb_client, monkeypatch):
+    async def fake_search(db, *, company, position, difficulty, top_k=8, redis=None):
+        raise QuestionBankRetrievalError()
+
+    monkeypatch.setattr("app.api.v1.question_bank.retrieval.search", fake_search)
+    resp = qb_client.get(
+        "/api/v1/question-bank/search",
+        params={"company": "字节", "position": "后端", "difficulty": "medium"},
+    )
+    assert resp.status_code == 502
+    data = resp.json()
+    assert data["code"] == "QUESTION_BANK_RETRIEVAL_FAILED"
 
 
 # ---- 题库模板 CRUD（M4 PR-R7-a）----

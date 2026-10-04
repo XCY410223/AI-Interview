@@ -5,10 +5,10 @@ import pytest
 from pydantic import ValidationError
 
 from app.schemas.question_bank import (
+    IngestRequest,
+    JDCapability,
     JDParseRequest,
     JDParseResponse,
-    JDCapability,
-    IngestRequest,
 )
 
 

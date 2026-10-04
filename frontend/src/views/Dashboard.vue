@@ -4,7 +4,6 @@ import { useRouter } from 'vue-router'
 
 import { listReports } from '@/api/report'
 import { listResumes } from '@/api/resume'
-import { exportWaitingListCsv } from '@/api/waitingList'
 import EmptyState from '@/components/EmptyState.vue'
 import { useAuthStore } from '@/stores/auth'
 import { gradeOf, type ReportListItem, type ReportStatus, type Resume } from '@/types'
@@ -53,18 +52,6 @@ function gradeText(row: ReportListItem): string {
   return '—'
 }
 
-/** 管理侧 CSV 导出：浏览器内存流下载，不写本地磁盘（红线 8）。 */
-async function exportWaitingList() {
-  const blob = await exportWaitingListCsv()
-  const url = URL.createObjectURL(blob)
-  const a = document.createElement('a')
-  a.href = url
-  a.download = 'waiting_list.csv'
-  document.body.appendChild(a)
-  a.click()
-  a.remove()
-  window.setTimeout(() => URL.revokeObjectURL(url), 1000)
-}
 </script>
 
 <template>
@@ -129,12 +116,6 @@ async function exportWaitingList() {
       <EmptyState v-else description="还没有报告，完成一场面试后自动生成" />
     </el-card>
 
-    <el-card class="waiting-card">
-      <div class="waiting-card__head">
-        <h3>等候名单</h3>
-      </div>
-      <el-button type="primary" plain @click="exportWaitingList">导出 Waiting List（CSV）</el-button>
-    </el-card>
   </div>
 </template>
 
@@ -152,12 +133,6 @@ async function exportWaitingList() {
 }
 .report-card {
   margin-top: 1.5rem;
-}
-.waiting-card {
-  margin-top: 1.5rem;
-}
-.waiting-card__head h3 {
-  margin: 0 0 0.75rem;
 }
 .report-card__head {
   display: flex;

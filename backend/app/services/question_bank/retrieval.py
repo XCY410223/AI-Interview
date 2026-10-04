@@ -12,7 +12,8 @@ from redis.asyncio import Redis
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.llm.client import llm_client
+from app.common.exceptions import QuestionBankRetrievalError
+from app.core.llm.client import LLMError, llm_client
 from app.models.question import QuestionBankItem
 from app.schemas.question_bank import QuestionBankSearchItem
 
@@ -109,7 +110,11 @@ async def search(
         if cached is not None:
             return cached[:top_k]
 
-    vectors = await embed_fn([build_query_text(company, position, difficulty)])
+    try:
+        vectors = await embed_fn([build_query_text(company, position, difficulty)])
+    except LLMError as exc:
+        # embedding 未配置/调用失败 → 明确报错而非落入通用 500（§9.6 依赖 EMBEDDING_*）
+        raise QuestionBankRetrievalError() from exc
     query_vector = vectors[0]
     rows = await cosine_search(
         db,
@@ -121,7 +126,8 @@ async def search(
     )
     items = _to_search_items(rows)
 
-    if redis is not None:
+    # 仅缓存非空结果：入库是异步的，缓存空结果会让「入库后立刻检索」吃到 10min 陈旧空缓存
+    if redis is not None and items:
         await _cache_set(redis, key, items)
     return items
 

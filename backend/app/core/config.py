@@ -61,6 +61,20 @@ class Settings(BaseSettings):
     EMBEDDING_DIM: int = 1024   # bge-m3 维度，入库/检索做维度断言（§十二）
     EMBEDDING_BATCH_SIZE: int = 32  # 入库批大小（§9.6）
 
+    # SMTP 发信（忘记密码找回邮件，§3.1；密钥/凭据走 .env 人工配置）
+    SMTP_HOST: str = "localhost"
+    SMTP_PORT: int = 1025      # dev Mailpit；生产 SMTP(TLS) 用 587，人工改 .env
+    SMTP_USER: str = ""
+    SMTP_PASSWORD: str = ""
+    SMTP_FROM: str = "AI-Interview <noreply@example.com>"
+    SMTP_USE_TLS: bool = False
+
+    # 密码找回（§3.1）
+    PASSWORD_RESET_TOKEN_TTL_MINUTES: int = 15
+    FRONTEND_BASE_URL: str = "http://localhost:5173"   # 拼接重置链接
+    PASSWORD_RESET_IP_LIMIT_PER_HOUR: int = 10
+    PASSWORD_RESET_EMAIL_LIMIT_PER_HOUR: int = 3
+
     # 限流
     AI_RATE_LIMIT_PER_HOUR: int = 20
     MAX_QUESTIONS_PER_INTERVIEW: int = 15
