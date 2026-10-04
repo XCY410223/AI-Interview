@@ -1,0 +1,20 @@
+{"company":"字节","position":"后端工程师","difficulty":"medium","expected_item_ids":[1,2],"expected_capabilities":["Kafka 消息可靠性","Redis 缓存"]}
+{"company":"字节","position":"后端工程师","difficulty":"hard","expected_item_ids":[3],"expected_capabilities":["分布式系统设计"]}
+{"company":"阿里","position":"后端工程师","difficulty":"medium","expected_item_ids":[4,5],"expected_capabilities":["高并发系统设计","MySQL 索引与事务"]}
+{"company":"腾讯","position":"前端工程师","difficulty":"medium","expected_item_ids":[6],"expected_capabilities":["Vue3","浏览器渲染与性能"]}
+{"company":"美团","position":"算法工程师","difficulty":"hard","expected_item_ids":[7,8],"expected_capabilities":["推荐排序模型","PyTorch"]}
+{"company":"字节","position":"测试开发工程师","difficulty":"medium","expected_item_ids":[9],"expected_capabilities":["接口自动化测试"]}
+{"company":"阿里","position":"数据分析师","difficulty":"easy","expected_item_ids":[10,11],"expected_capabilities":["SQL","数据可视化"]}
+{"company":"腾讯","position":"DevOps 工程师","difficulty":"hard","expected_item_ids":[12],"expected_capabilities":["Kubernetes","监控告警"]}
+{"company":"字节","position":"Android 工程师","difficulty":"medium","expected_item_ids":[13,14],"expected_capabilities":["Kotlin","Jetpack 与协程"]}
+{"company":"阿里","position":"安全工程师","difficulty":"hard","expected_item_ids":[15],"expected_capabilities":["Web 安全漏洞","渗透测试"]}
+{"company":"腾讯","position":"产品经理","difficulty":"easy","expected_item_ids":[16],"expected_capabilities":["PRD 撰写","数据驱动决策"]}
+{"company":"字节","position":"自然语言处理工程师","difficulty":"hard","expected_item_ids":[17,18],"expected_capabilities":["RAG 与向量检索","Transformer 与预训练"]}
+{"company":"美团","position":"后端工程师","difficulty":"medium","expected_item_ids":[19,20],"expected_capabilities":["微服务与容错","Kafka 消息可靠性"]}
+{"company":"阿里","position":"前端工程师","difficulty":"easy","expected_item_ids":[21],"expected_capabilities":["TypeScript","构建工具链"]}
+{"company":"腾讯","position":"测试开发工程师","difficulty":"medium","expected_item_ids":[22],"expected_capabilities":["CI/CD 流水线","pytest"]}
+{"company":"字节","position":"数据分析师","difficulty":"medium","expected_item_ids":[23],"expected_capabilities":["Python 数据处理","A/B 实验"]}
+{"company":"阿里","position":"DevOps 工程师","difficulty":"medium","expected_item_ids":[24],"expected_capabilities":["Docker","IaC 自动化"]}
+{"company":"腾讯","position":"算法工程师","difficulty":"medium","expected_item_ids":[25],"expected_capabilities":["大模型微调","特征工程"]}
+{"company":"美团","position":"Android 工程师","difficulty":"hard","expected_item_ids":[26],"expected_capabilities":["性能与内存优化","插件化"]}
+{"company":"字节","position":"安全工程师","difficulty":"medium","expected_item_ids":[27],"expected_capabilities":["安全编码规范","应急响应"]}

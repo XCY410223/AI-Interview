@@ -8,6 +8,7 @@
 #   - app / celery 改用 Dockerfile.dev（含 dev 依赖 + uvicorn --reload）
 #   - 挂载 ./:/app 源码热重载；app 额外发布 8006 供本地直连
 #   - APP_ENV=development、DEBUG=true
+#   - Mailpit：SMTP 1025 / Web UI 8025（忘记密码找回邮件，§3.1）
 # =============================================================================
 
 services:
@@ -19,6 +20,9 @@ services:
     environment:
       APP_ENV: development
       DEBUG: "true"
+      SMTP_HOST: mailpit
+      SMTP_PORT: "1025"
+      SMTP_FROM: "AI-Interview <noreply@example.com>"
     ports:
       - "8006:8006"
     volumes:
@@ -29,6 +33,9 @@ services:
     environment:
       APP_ENV: development
       DEBUG: "true"
+      SMTP_HOST: mailpit
+      SMTP_PORT: "1025"
+      SMTP_FROM: "AI-Interview <noreply@example.com>"
     volumes:
       - .:/app
 
@@ -37,5 +44,18 @@ services:
     environment:
       APP_ENV: development
       DEBUG: "true"
+      SMTP_HOST: mailpit
+      SMTP_PORT: "1025"
+      SMTP_FROM: "AI-Interview <noreply@example.com>"
     volumes:
       - .:/app
+
+  # ---- Mailpit：本地 SMTP 调试（忘记密码找回，§3.1）----
+  mailpit:
+    image: axllent/mailpit:latest
+    restart: unless-stopped
+    ports:
+      - "1025:1025"   # SMTP
+      - "8025:8025"   # Web UI
+    networks:
+      - backend

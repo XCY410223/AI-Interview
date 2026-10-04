@@ -31,7 +31,7 @@ jobs:
       - name: mypy
         run: mypy app
 
-  # ---- 阶段 2：test（pytest 全量 + 覆盖率 ≥60%）----
+  # ---- 阶段 2：test（pytest 全量 + 覆盖率 ≥80%）----
   test:
     runs-on: ubuntu-latest
     defaults:
@@ -48,7 +48,7 @@ jobs:
       - name: Install dependencies
         run: pip install -r requirements.txt pytest pytest-cov
       - name: Run tests with coverage
-        run: pytest --cov=app --cov-report=term-missing --cov-fail-under=60
+        run: pytest --cov=app --cov-report=term-missing --cov-fail-under=80
 
   # ---- 阶段 3：lint-frontend（eslint + vue-tsc）----
   lint-frontend:

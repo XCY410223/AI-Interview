@@ -3,6 +3,8 @@ from __future__ import annotations
 
 from types import SimpleNamespace
 
+from app.schemas.interview import QuestionItem
+
 
 class FakeRedis:
     """dict-backed async redis，覆盖限流（zset）与黑名单（get/set）。"""
@@ -31,19 +33,34 @@ class FakeRedis:
     async def get(self, key: str) -> str | None:
         return self._data.get(key)
 
-    async def set(self, key: str, value: str, ex: int | None = None) -> bool:
+    async def getdel(self, key: str) -> str | None:
+        return self._data.pop(key, None)
+
+    async def set(self, key: str, value: str, ex: int | None = None, nx: bool = False) -> bool:
+        if nx and key in self._data:
+            return False
         self._data[key] = value
         return True
+
+    async def delete(self, key: str) -> bool:
+        return self._data.pop(key, None) is not None
 
     async def aclose(self) -> None:
         pass
 
 
 class FakeResult:
-    def __init__(self, scalar_one_or_none=None, scalar_one=None, scalars: list | None = None):
+    def __init__(
+        self,
+        scalar_one_or_none=None,
+        scalar_one=None,
+        scalars: list | None = None,
+        rowcount: int | None = None,
+    ):
         self._scalar_one_or_none = scalar_one_or_none
         self._scalar_one = scalar_one
         self._scalars = scalars
+        self.rowcount = rowcount
 
     def scalar_one_or_none(self):
         return self._scalar_one_or_none
@@ -75,6 +92,7 @@ class FakeSession:
         self.committed = False
         self._execute_result = FakeResult()
         self._get_map: dict[int, object] = {}
+        self.executed: list = []
 
     def configure(
         self,
@@ -83,8 +101,9 @@ class FakeSession:
         scalar_one=None,
         scalars: list | None = None,
         get_map: dict | None = None,
+        rowcount: int | None = None,
     ) -> "FakeSession":
-        self._execute_result = FakeResult(scalar_one_or_none, scalar_one, scalars)
+        self._execute_result = FakeResult(scalar_one_or_none, scalar_one, scalars, rowcount)
         if get_map is not None:
             self._get_map = get_map
         return self
@@ -118,6 +137,7 @@ class FakeSession:
         return self._get_map.get(pk)
 
     async def execute(self, stmt):
+        self.executed.append(stmt)
         return self._execute_result
 
     async def __aenter__(self) -> "FakeSession":
@@ -167,3 +187,158 @@ def make_resume(
         parsed_content=None, error_message=None, retry_count=retry_count,
         uploaded_at=None, processed_at=None, deleted_at=None,
     )
+
+
+def _default_questions() -> list[dict]:
+    return [
+        {"question_index": 0, "round": 0, "category": "项目", "content": "介绍你最复杂的项目",
+         "reference_points": ["技术选型", "难点"], "difficulty": "medium"},
+        {"question_index": 1, "round": 0, "category": "知识", "content": "解释索引原理",
+         "reference_points": ["B+树"], "difficulty": "medium"},
+        {"question_index": 2, "round": 0, "category": "行为", "content": "如何处理冲突",
+         "reference_points": ["沟通"], "difficulty": "medium"},
+    ]
+
+
+def make_interview(
+    *,
+    interview_id: int = 1,
+    user_id: int = 1,
+    resume_id: int | None = 1,
+    position: str = "后端工程师",
+    difficulty: str = "medium",
+    question_count: int = 3,
+    style: str = "friendly",
+    status: str = "created",
+    current_question_index: int = 0,
+    current_round: int = 0,
+    questions_json: list | None = None,
+    config_json: dict | None = None,
+):
+    return SimpleNamespace(
+        id=interview_id, user_id=user_id, resume_id=resume_id, position=position,
+        difficulty=difficulty, question_count=question_count, style=style, status=status,
+        current_question_index=current_question_index, current_round=current_round,
+        questions_json=questions_json if questions_json is not None else _default_questions(),
+        config_json=config_json, completed_at=None,
+        deleted_at=None, created_at=None, updated_at=None,
+    )
+
+
+def make_interview_message(
+    *,
+    message_id: int = 1,
+    interview_id: int = 1,
+    question_index: int = 0,
+    round_: int = 0,
+    role: str = "candidate",
+    content: str = "回答",
+    event_type: str = "answer",
+    payload_json: dict | None = None,
+):
+    return SimpleNamespace(
+        id=message_id, interview_id=interview_id, question_index=question_index, round=round_,
+        role=role, content=content, event_type=event_type, payload_json=payload_json,
+        created_at=None, updated_at=None, deleted_at=None,
+    )
+
+
+def make_report(
+    *,
+    report_id: int = 1,
+    interview_id: int = 1,
+    user_id: int = 1,
+    status: str = "pending",
+    prompt_version: str = "1.0",
+    overall_score=None,
+    grade: str | None = None,
+    dimensions_json: list | None = None,
+    payload_json: dict | None = None,
+    pdf_object_key: str | None = None,
+    pdf_generated_at=None,
+    retry_count: int = 0,
+    error_message: str | None = None,
+    generated_at=None,
+):
+    return SimpleNamespace(
+        id=report_id, interview_id=interview_id, user_id=user_id, status=status,
+        prompt_version=prompt_version, overall_score=overall_score, grade=grade,
+        dimensions_json=dimensions_json, payload_json=payload_json,
+        pdf_object_key=pdf_object_key, pdf_generated_at=pdf_generated_at,
+        retry_count=retry_count, error_message=error_message, generated_at=generated_at,
+        created_at=None, updated_at=None, deleted_at=None,
+    )
+
+
+def make_question_bank_item(
+    *,
+    item_id: int = 1,
+    user_id: int = 1,
+    company: str = "字节",
+    position: str = "后端",
+    difficulty: str = "medium",
+    content: str = "面经原文",
+    source_url: str | None = None,
+    collected_at=None,
+    content_hash: str | None = None,
+    embedding=None,
+    status: str = "pending",
+    retry_count: int = 0,
+    error_message: str | None = None,
+):
+    if content_hash is None:
+        from app.services.question_bank.ingest import content_hash as _ch
+
+        content_hash = _ch(company, position, content)
+    return SimpleNamespace(
+        id=item_id, user_id=user_id, company=company, position=position,
+        difficulty=difficulty, content=content, source_url=source_url,
+        collected_at=collected_at, content_hash=content_hash, embedding=embedding,
+        status=status, retry_count=retry_count, error_message=error_message,
+        created_at=None, updated_at=None, deleted_at=None,
+    )
+
+
+def _to_question_items(raw: list) -> list:
+    return [q if isinstance(q, QuestionItem) else QuestionItem.model_validate(q) for q in raw]
+
+
+class FakeAIService:
+    """测试用 AI 服务：可编程出题/评语/评分/追问结果，记录调用参数。"""
+
+    def __init__(
+        self,
+        questions: list | None = None,
+        feedback_chunks: list | None = None,
+        score=None,
+        followup=None,
+    ):
+        self.questions = _to_question_items(questions or _default_questions())
+        self.feedback_chunks = feedback_chunks if feedback_chunks is not None else ["不错，", "有亮点。"]
+        self.score = score if score is not None else SimpleNamespace(
+            score=7.5, dimensions={"completeness": 8.0}, feedback="整体不错"
+        )
+        self.followup = followup if followup is not None else SimpleNamespace(
+            need_follow_up=False, follow_up_hint="", reason="回答完整"
+        )
+        self.generate_calls: list[dict] = []
+        self.stream_calls: list[dict] = []
+        self.score_calls: list[dict] = []
+        self.followup_calls: list[dict] = []
+
+    async def generate_questions(self, **kw):
+        self.generate_calls.append(kw)
+        return self.questions
+
+    async def stream_feedback(self, **kw):
+        self.stream_calls.append(kw)
+        for chunk in self.feedback_chunks:
+            yield chunk
+
+    async def evaluate_score(self, **kw):
+        self.score_calls.append(kw)
+        return self.score
+
+    async def decide_follow_up(self, **kw):
+        self.followup_calls.append(kw)
+        return self.followup

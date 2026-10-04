@@ -46,6 +46,7 @@ async function onSubmit() {
           <el-input v-model="form.password" type="password" show-password @keyup.enter="onSubmit" />
         </el-form-item>
         <el-button type="primary" class="submit" :loading="loading" @click="onSubmit">登录</el-button>
+        <router-link class="link" to="/forgot-password">忘记密码？</router-link>
         <router-link class="link" to="/register">没有账号？去注册</router-link>
       </el-form>
     </el-card>

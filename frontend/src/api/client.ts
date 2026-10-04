@@ -11,6 +11,12 @@ export const client = axios.create({
   timeout: 30000,
 })
 
+/** 公开端点实例：不附加 Authorization、不做 401 续期（忘记密码/重置密码等匿名场景）。 */
+export const publicClient = axios.create({
+  baseURL: API_BASE,
+  timeout: 30000,
+})
+
 client.interceptors.request.use((config) => {
   const auth = useAuthStore()
   if (auth.accessToken) {

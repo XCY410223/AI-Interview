@@ -11,8 +11,10 @@ from app.core.security import (
     create_access_token,
     create_refresh_token,
     decode_token,
+    generate_reset_token,
     hash_password,
     hash_refresh_token,
+    hash_reset_token,
     verify_password,
 )
 
@@ -59,8 +61,11 @@ def test_decode_wrong_type_rejected():
 
 def test_decode_tampered_token_rejected():
     token = create_access_token(1)
+    # 篡改中间字符（末位 base64url 可能含未用位，篡改末位有歧义会偶发通过，故取中点）
+    mid = len(token) // 2
+    tampered = token[:mid] + ("a" if token[mid] != "a" else "b") + token[mid + 1:]
     with pytest.raises(pyjwt.PyJWTError):
-        decode_token(token[:-1] + ("a" if token[-1] != "a" else "b"))
+        decode_token(tampered, expected_type="access")
 
 
 def test_refresh_token_carries_jti():
@@ -73,3 +78,17 @@ def test_refresh_token_carries_jti():
 def test_hash_refresh_token_stable_and_distinct():
     assert hash_refresh_token("abc") == hash_refresh_token("abc")
     assert hash_refresh_token("abc") != hash_refresh_token("abd")
+
+
+def test_generate_reset_token_high_entropy_and_distinct():
+    t1 = generate_reset_token()
+    t2 = generate_reset_token()
+    assert t1 != t2
+    assert len(t1) == 43  # token_urlsafe(32) → 43 字符
+    allowed = set("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-_")
+    assert set(t1) <= allowed
+
+
+def test_hash_reset_token_stable_and_distinct():
+    assert hash_reset_token("abc") == hash_reset_token("abc")
+    assert hash_reset_token("abc") != hash_reset_token("abd")

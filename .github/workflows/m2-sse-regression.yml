@@ -1,0 +1,38 @@
+name: M2 SSE Golden Regression
+
+# 手动触发（评估产生 LLM 费用，禁止每个 PR 自动跑，规范 §9.7 / M2 计划 §4.2）
+on: workflow_dispatch
+
+jobs:
+  regression:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+      - name: Run golden regression
+        env:
+          LLM_API_KEY: ${{ secrets.LLM_API_KEY }}
+        run: |
+          python eval/scripts/run_golden_regression.py \
+            --dataset eval/datasets/golden_v1_evaluations.jsonl \
+            --kind evaluations --output artifacts/golden_v1_evaluations.json
+          python eval/scripts/run_golden_regression.py \
+            --dataset eval/datasets/golden_v1_followups.jsonl \
+            --kind followups --output artifacts/golden_v1_followups.json
+      - name: Compare versions (drift > 1.0)
+        run: |
+          python eval/scripts/compare_versions.py \
+            --baseline artifacts/golden_v1_baseline.json \
+            --current artifacts/golden_v1_evaluations.json \
+            --threshold 1.0
+      - uses: actions/upload-artifact@v4
+        with:
+          name: regression-report
+          path: backend/artifacts/golden_v*.json

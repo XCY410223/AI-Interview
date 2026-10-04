@@ -17,9 +17,13 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 ARG APT_MIRROR=mirrors.tuna.tsinghua.edu.cn
 
 # 系统依赖：curl(healthcheck) procps(pgrep) tzdata(时区) ca-certificates(HTTPS)
+# WeasyPrint(M3 PDF)：Pango 系库 + CJK 字体（与 Dockerfile 保持一致）
 RUN sed -i "s|deb.debian.org|${APT_MIRROR}|g" /etc/apt/sources.list.d/debian.sources \
     && apt-get update && apt-get install -y --no-install-recommends \
         ca-certificates curl procps tzdata \
+        libpango-1.0-0 libpangoft2-1.0-0 libpangocairo-1.0-0 \
+        libgdk-pixbuf-2.0-0 libffi-dev shared-mime-info \
+        fonts-wqy-zenhei \
     && rm -rf /var/lib/apt/lists/* \
     && groupadd --gid 10001 app \
     && useradd --uid 10001 --gid app --create-home --home-dir /home/app app \
@@ -42,6 +46,10 @@ COPY --chown=app:app . .
 USER app
 
 EXPOSE 8006
+
+# 健康检查：与生产镜像一致（curl /api/v1/health），供 nginx depends_on service_healthy 使用
+HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \
+  CMD ["curl", "-fsS", "http://127.0.0.1:8006/api/v1/health"]
 
 # 源码由 dev overlay 挂载 ./:/app，--reload 监听变更热重载
 CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8006", "--reload"]

@@ -32,7 +32,7 @@ AI-Interview/
 │   │   │   ├── question_bank/service.py
 │   │   │   └── report/service.py
 │   │   ├── models/                   # ORM 模型（base + user/token/resume/interview/
-│   │   │                             #   interview_message/question/report/waiting_list）
+│   │   │                             #   interview_message/question/report）
 │   │   ├── schemas/                  # Pydantic（base/common + 各模块）
 │   │   ├── tasks/                    # Celery（celery_app + resume/report/email/rag）
 │   │   ├── prompts/                  # AI Prompt 模板（带 version 头）
@@ -41,7 +41,7 @@ AI-Interview/
 │   ├── migrations/                   # Alembic（versions/ + README）
 │   ├── tests/                        # unit / integration / fixtures
 │   ├── eval/                         # Ragas 离线评估（datasets/scripts/judge）
-│   ├── resources/emails/             # 邮件模板（集中管理）
+│   ├── resources/emails/             # 邮件资源目录（模板现以代码集中在 app/services/auth/email_templates.py）
 │   ├── .env.example                  # 环境变量样例（唯一允许入库的配置）
 │   ├── requirements.txt / requirements-dev.txt
 │   ├── Dockerfile / Dockerfile.dev / .dockerignore
@@ -72,6 +72,23 @@ AI-Interview/
 6. AI 调用统一走 `core/llm/`；7. SSE 五类事件 `meta/chunk/score/next/error`；8. 文件存对象存储（MinIO/COS）；
 9. Prompt 集中管理带版本号；10. ragas 仅存在于 requirements-dev.txt。
 
+## 功能清单（按模块）
+
+| 模块 | 后端 | 前端 | 状态 |
+|---|---|---|---|
+| 账户 | 注册/登录、JWT 双 token、限流 | 登录/注册页 | ✅ |
+| 简历 | 上传、异步解析、对象存储 | 上传/详情页 | ✅ |
+| 面试（M2） | 出题、SSE 五类事件、追问状态机、风格切换 | 配置页、对话页 | ✅ |
+| 报告（M3） | 生成/PDF/雷达维度 | 列表/详情（雷达图） | ✅ |
+| 题库（M4） | JD 解析、真题 RAG 入库/检索、模板 CRUD | JD 定制面板、入库/检索页、模板页 | ✅ |
+| 回放（M4） | 历史列表/回放详情/重评 | 历史列表、回放详情、题级重评 | ✅ |
+| 练习（M4） | 弱项练习包生成/查询 | 报告页生成入口、练习包页 | ✅ |
+| ~~Waiting List（M4）~~ | ~~公开订阅、CSV 流式导出~~ | ~~登录页订阅卡片、管理导出~~ | ❌ 已下线（2026-10-04） |
+| 账户（找回密码） | 邮件重置令牌 + IP/邮箱双限流 | 忘记/重置密码页 | ✅ |
+
+> M4 前端补全详见 `docs/M4-前端补全交付说明.md`；各模块后端契约见 `docs/M*-接口文档.md`。
+> Waiting List 下线决策与影响登记见 `docs/M4-完成报告.md` §八；迁移 `0009_drop_waiting_list` 待人工执行。
+
 ## 端口规划（规范 §15）
 
 FastAPI `8006` / PostgreSQL `5434` / Redis `6382` / Nginx `80`/`443`
@@ -101,11 +118,12 @@ docker compose up -d --build  # 一条命令起全栈
 
 > 注意：`docker compose down -v` 会清空数据卷，属危险命令（CLAUDE.md 红线），请勿执行。
 
-## 下一步（对应计划书 M0/M1）
+## 下一步
 
 - ~~M0-2：实现 `docker-compose.yml` + Dockerfile（healthcheck/非 root/多阶段构建）~~ ✅
 - ~~M0-3：`.github/workflows/` 建 CI（quick-check/test/lint-frontend/build，覆盖率 ≥60%）~~ ✅
 - ~~M0-4：实现 `core/llm/client.py`（超时/重试/降级/token 计量）~~ ✅
-- **M1：账户 + 简历（注册/登录/上传/异步解析/结构化展示）** ✅（完成报告见桌面 `M1 完成报告.md`）
-
-M1 已部署：Docker 全栈 running、迁移已执行 0002(head)；剩余 LLM 冒烟 + 人工评审。
+- ~~M1：账户 + 简历（注册/登录/上传/异步解析/结构化展示）~~ ✅（完成报告见桌面 `M1 完成报告.md`）
+- ~~M2 面试引擎 / M3 报告 / M4 题库+回放+练习~~ ✅（见 `docs/M2-完成报告.md`、`M3-完成报告.md`、`M4-完成报告.md`）
+- ~~忘记密码找回（SMTP + Celery 邮件任务 + 前端两页）~~ ✅（见 `docs/忘记密码找回-设计方案.md`）
+- **待办**：迁移 `0009` 人工终审执行；前端 `dist` 构建并挂载 nginx；`EMBEDDING_*` 环境变量配置；上机部署冒烟

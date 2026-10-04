@@ -53,8 +53,27 @@ class Settings(BaseSettings):
     LLM_TOTAL_TIMEOUT: int = 120
     LLM_MAX_RETRIES: int = 3
 
-    # Embedding（bge-m3，评估与生产同源）
+    # Embedding（bge-m3，评估与生产同源，M4 计划 §四 PR-R3）
     EMBEDDING_MODEL: str = "bge-m3"
+    # OpenAI 兼容 embeddings 端点（自部署 Xinference/TEI 或兼容网关）；涉密钥，交人工配 .env
+    EMBEDDING_BASE_URL: str = ""
+    EMBEDDING_API_KEY: str = ""
+    EMBEDDING_DIM: int = 1024   # bge-m3 维度，入库/检索做维度断言（§十二）
+    EMBEDDING_BATCH_SIZE: int = 32  # 入库批大小（§9.6）
+
+    # SMTP 发信（忘记密码找回邮件，§3.1；密钥/凭据走 .env 人工配置）
+    SMTP_HOST: str = "localhost"
+    SMTP_PORT: int = 1025      # dev Mailpit；生产 SMTP(TLS) 用 587，人工改 .env
+    SMTP_USER: str = ""
+    SMTP_PASSWORD: str = ""
+    SMTP_FROM: str = "AI-Interview <noreply@example.com>"
+    SMTP_USE_TLS: bool = False
+
+    # 密码找回（§3.1）
+    PASSWORD_RESET_TOKEN_TTL_MINUTES: int = 15
+    FRONTEND_BASE_URL: str = "http://localhost:5173"   # 拼接重置链接
+    PASSWORD_RESET_IP_LIMIT_PER_HOUR: int = 10
+    PASSWORD_RESET_EMAIL_LIMIT_PER_HOUR: int = 3
 
     # 限流
     AI_RATE_LIMIT_PER_HOUR: int = 20
