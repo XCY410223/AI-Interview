@@ -55,6 +55,16 @@ def content_hash(company: str, position: str, content: str) -> str:
     return hashlib.sha256(raw).hexdigest()
 
 
+def job_content_hash(company: str, position: str, content: str) -> str:
+    """作业行幂等键：加 discriminator 与 chunk 的 content_hash 区分。
+
+    短文本（≤ SLICE_MAX）时 slice_text 返回单 chunk == 原文，若作业行与 chunk 行
+    同用 content_hash 会撞 uq_question_bank_items_content_hash 唯一约束（同表两种行）。
+    """
+    raw = f"job\x00{company}\x00{position}\x00{content}".encode("utf-8")
+    return hashlib.sha256(raw).hexdigest()
+
+
 def cosine_similarity(a: list[float], b: list[float]) -> float:
     """两向量余弦相似度；空向量/维度不符返回 0（防御）。"""
     if not a or not b or len(a) != len(b):
@@ -94,6 +104,7 @@ __all__ = [
     "DEDUP_THRESHOLD",
     "slice_text",
     "content_hash",
+    "job_content_hash",
     "cosine_similarity",
     "should_drop",
     "assert_embedding_dim",

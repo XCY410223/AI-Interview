@@ -15,7 +15,7 @@ from datetime import datetime, timezone
 from celery import shared_task
 from sqlalchemy import select
 
-from app.core.database import async_session_factory
+from app.core.database import async_session_factory, celery_session_factory
 from app.core.llm.client import llm_client
 from app.models.question import (
     QUESTION_BANK_STATUS_COMPLETED,
@@ -49,7 +49,7 @@ MAX_RETRIES = 3
 )
 def ingest_item_task(self, item_id: int) -> dict:
     """Celery 入口：入参只接 item_id（§10.2）。"""
-    return asyncio.run(_run_ingest(item_id, task=self))
+    return asyncio.run(_run_ingest(item_id, task=self, session_factory=celery_session_factory))
 
 
 async def _load_existing(session_factory, company: str, position: str) -> list[QuestionBankItem]:

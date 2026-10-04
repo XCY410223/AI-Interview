@@ -111,6 +111,7 @@ def test_llm_client_builds_client_with_key(monkeypatch):
 
     monkeypatch.setattr("app.core.llm.client.AsyncOpenAI", _FakeAsyncOpenAI)
     monkeypatch.setattr(settings, "LLM_API_KEY", "test-key")
+    monkeypatch.setattr(settings, "EMBEDDING_BASE_URL", "")  # 隔离 embedding 子客户端，避免污染 captured
     client = LLMClient()
 
     assert client._client is not None

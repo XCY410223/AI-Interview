@@ -9,6 +9,7 @@ from app.services.question_bank.ingest import (
     batch_chunks,
     content_hash,
     cosine_similarity,
+    job_content_hash,
     should_drop,
     slice_text,
 )
@@ -54,6 +55,12 @@ def test_content_hash_deterministic_and_distinct():
     assert content_hash("字节", "后端", "另一题") != h1
     assert content_hash("阿里", "后端", "题") != h1
     assert len(h1) == 64
+
+
+def test_job_content_hash_distinct_from_chunk_hash():
+    # 短文本（单 chunk == 原文）：作业行与 chunk 行同表，hash 必须区分，否则撞 UNIQUE
+    assert job_content_hash("字节", "后端", "题") != content_hash("字节", "后端", "题")
+    assert len(job_content_hash("字节", "后端", "题")) == 64
 
 
 # ---- 相似度 / 去重 ----
