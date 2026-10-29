@@ -3,6 +3,9 @@ name: M2 SSE Golden Regression
 # 手动触发（评估产生 LLM 费用，禁止每个 PR 自动跑，规范 §9.7 / M2 计划 §4.2）
 on: workflow_dispatch
 
+permissions:
+  contents: read
+
 jobs:
   regression:
     runs-on: ubuntu-latest
@@ -11,6 +14,8 @@ jobs:
         working-directory: backend
     steps:
       - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
