@@ -123,6 +123,6 @@ docker compose up -d --build  # 一条命令起全栈
 - ~~M0-2：实现 `docker-compose.yml` + Dockerfile（healthcheck/非 root/多阶段构建）~~ ✅
 - ~~M0-3：`.github/workflows/` 建 CI（quick-check/test/lint-frontend/build，覆盖率 ≥60%）~~ ✅
 - ~~M0-4：实现 `core/llm/client.py`（超时/重试/降级/token 计量）~~ ✅
-- ~~M1：账户 + 简历（注册/登录/上传/异步解析/结构化展示）~~ ✅（完成报告见桌面 `M1 完成报告.md`）
+- ~~M1：账户 + 简历（注册/登录/上传/异步解析/结构化展示）~~ ✅（完成报告已归档）
 - ~~M2 面试引擎 / M3 报告 / M4 题库+回放+练习~~ ✅（见 `docs/M2-完成报告.md`、`M3-完成报告.md`、`M4-完成报告.md`）
 - ~~忘记密码找回（SMTP + Celery 邮件任务 + 前端两页）~~ ✅（见 `docs/忘记密码找回-设计方案.md`）
