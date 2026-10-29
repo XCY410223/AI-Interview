@@ -1,4 +1,8 @@
-# AI-Interview — 智能面试平台（求职者模拟面试增强版）
+# AI-Interview — 智能面试平台
+
+AI-Interview 是一个面向求职准备场景的智能面试平台，覆盖账户、简历解析、模拟面试、面试报告、题库与历史回放等完整流程。项目采用前后端分离与异步任务架构，支持基于大模型的动态出题、追问和结构化评估。
+
+> 仓库仅保留脱敏后的示例配置与测试数据，不包含真实账号、个人联系方式、生产密钥或开发者本机路径。
 
 > 技术栈：FastAPI (Python 3.12+) / SQLAlchemy 2.0 async / PostgreSQL 16 (JSONB + pgvector) / Celery + Redis / Vue3 + Vite + Pinia + Element Plus
 > 项目宪法：根目录 `CLAUDE.md`（红线条款，违反即重做）
@@ -123,6 +127,12 @@ docker compose up -d --build  # 一条命令起全栈
 - ~~M0-2：实现 `docker-compose.yml` + Dockerfile（healthcheck/非 root/多阶段构建）~~ ✅
 - ~~M0-3：`.github/workflows/` 建 CI（quick-check/test/lint-frontend/build，覆盖率 ≥60%）~~ ✅
 - ~~M0-4：实现 `core/llm/client.py`（超时/重试/降级/token 计量）~~ ✅
-- ~~M1：账户 + 简历（注册/登录/上传/异步解析/结构化展示）~~ ✅（完成报告见桌面 `M1 完成报告.md`）
+- ~~M1：账户 + 简历（注册/登录/上传/异步解析/结构化展示）~~ ✅
 - ~~M2 面试引擎 / M3 报告 / M4 题库+回放+练习~~ ✅（见 `docs/M2-完成报告.md`、`M3-完成报告.md`、`M4-完成报告.md`）
 - ~~忘记密码找回（SMTP + Celery 邮件任务 + 前端两页）~~ ✅（见 `docs/忘记密码找回-设计方案.md`）
+
+## 隐私与安全
+
+- 示例环境变量统一使用占位值，真实密钥应仅通过本地 `.env` 或部署平台注入。
+- 测试数据仅使用虚构账号与示例邮箱，不提交真实用户数据。
+- 提交前请检查日志、上传文件、数据库导出和本地路径，避免将个人信息带入版本库。
